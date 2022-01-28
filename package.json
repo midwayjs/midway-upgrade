@@ -1,0 +1,43 @@
+{
+  "name": "midway-upgrade",
+  "version": "0.0.1",
+  "main": "dist/index",
+  "typings": "dist/index.d.ts",
+  "dependencies": {
+    "@midwayjs/command-core": "^1.2.97",
+    "@midwayjs/serverless-spec-builder": "^1.2.95",
+    "prettier": "^2.1.1",
+    "typescript": "4.1.5",
+    "fs-extra": "^8.1.0",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@midwayjs/cli": "^1.2.90",
+    "@types/jest": "^27.4.0",
+    "@types/node": "^10",
+    "mwts": "^1.3.0"
+  },
+  "engines": {
+    "node": ">= 10"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "lint": "mwts check",
+    "lint:fix": "mwts fix",
+    "test": "mw test",
+    "cov": "mw cov",
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:midwayjs/cli.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "gitHead": "61e1928171b9ad9375fc0448cba975c30af81b13"
+}
