@@ -24,5 +24,3 @@ export const midwayFrameworkInfo = [
     type: MidwayFramework.FaaS,
   },
 ];
-
-export const envConfigFileReg = /^config\.(\w+)\.ts$/g;

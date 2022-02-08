@@ -11,7 +11,8 @@
     "noImplicitReturns": false,
     "strict": false,
     "noEmitOnError": false,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "outDir": "dist"
   },
   "exclude": [
     "dist",

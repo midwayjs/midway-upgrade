@@ -3,9 +3,9 @@ import {
   findNpmModule,
   formatModuleVersion,
 } from '@midwayjs/command-core';
-import { existsSync, readdir, readFileSync, stat } from 'fs-extra';
+import { existsSync, readdir, readFileSync, stat, writeFile, remove } from 'fs-extra';
 import { join, resolve } from 'path';
-import { envConfigFileReg, MidwayFramework, midwayFrameworkInfo } from './constants';
+import { MidwayFramework, midwayFrameworkInfo } from './constants';
 import { IConfigurationInfo, IProjectInfo } from './interface';
 import * as YAML from 'js-yaml';
 import { ASTOperator, IFileAstInfo } from './ast';
@@ -35,18 +35,19 @@ export class UpgradePlugin extends BasePlugin {
   commands = {
     upgrade: {
       usage: 'upgrade to new version',
-      lifecycleEvents: ['projectInfo', 'framework'],
+      lifecycleEvents: ['projectInfo', 'framework', 'final'],
     },
   };
 
   hooks = {
     'upgrade:projectInfo': this.getProjectInfo.bind(this),
     'upgrade:framework': this.handleFrameworkUpgrade.bind(this),
+    'upgrade:final': this.final.bind(this),
   };
 
   async getProjectInfo() {
     const cwd = (this.projectInfo.cwd = this.getCwd());
-    const pkgFile = join(process.cwd(), 'package.json');
+    const pkgFile = join(cwd, 'package.json');
     if (!pkgFile) {
       return;
     }
@@ -63,15 +64,18 @@ export class UpgradePlugin extends BasePlugin {
       const version = this.getModuleVersion(
         frameworkInfo.module
       );
+      if (!version) {
+        return;
+      }
       this.projectInfo.frameworkInfo = {
         info: frameworkInfo,
         version,
       }
-      return this.projectInfo.frameworkInfo;
+      return true;
     });
 
     if (!framework) {
-      return;
+      throw new Error('current project unsupport');
     }
 
     this.projectInfo.framework = framework.type;
@@ -137,14 +141,14 @@ export class UpgradePlugin extends BasePlugin {
       pkgJson.dependencies[this.projectInfo.frameworkInfo.info.module] = '^3.0.0';
       const notNeedUpgreade = ['@midwayjs/logger'];
       Object.keys(pkgJson.dependencies).map(depName => {
-        if (depName.startsWith('@midwayjs/') || notNeedUpgreade.includes(depName) || depName.includes('cli')) {
+        if (!depName.startsWith('@midwayjs/') || notNeedUpgreade.includes(depName) || depName.includes('cli')) {
           return;
         }
         pkgJson.dependencies[depName] = '^3.0.0';
       });
 
       Object.keys(pkgJson.devDependencies).map(depName => {
-        if (depName.startsWith('@midwayjs/') || notNeedUpgreade.includes(depName) || depName.includes('cli')) {
+        if (!depName.startsWith('@midwayjs/') || notNeedUpgreade.includes(depName) || depName.includes('cli')) {
           return;
         }
         pkgJson.devDependencies[depName] = '^3.0.0';
@@ -166,6 +170,14 @@ export class UpgradePlugin extends BasePlugin {
       const { version } = this.projectInfo.frameworkInfo;
       return this.core.cli.log(`The current framework version (${MidwayFramework.FaaS} ${version.major}.${version.minor}) does not support upgrading`);
     }
+
+    this.astInstance.done();
+    await writeFile(this.projectInfo.pkg.file, JSON.stringify(this.projectInfo.pkg.data, null, 2));
+    const nmDir = join(this.projectInfo.cwd, 'node_modules');
+    if (existsSync(nmDir)) {
+      await remove(nmDir);
+    }
+    this.core.cli.log(`Upgrade success!`);
   }
 
   // 升级 configuration 从2版本到3版本
@@ -195,8 +207,10 @@ export class UpgradePlugin extends BasePlugin {
       if (configFileDir.isDirectory()) {
         const allFiles = await readdir(envConfigFilesDir);
         allFiles.forEach(file => {
+          const envConfigFileReg = /^config\.(\w+)\.ts$/;
           if (envConfigFileReg.test(file)) {
-            const env = envConfigFileReg.exec(file)[1];
+            const res = envConfigFileReg.exec(file);
+            const env = res[1];
             const envVarName = env + 'Config';
             // import 到 configuration 文件中
             this.astInstance.addImportToFile(astInfo, {
@@ -248,6 +262,7 @@ export class UpgradePlugin extends BasePlugin {
 
   private getModuleVersion(moduleName: string) {
     const pkgJson = this.projectInfo.pkg.data as any;
+    
     const cwd = this.projectInfo.cwd;
     if (existsSync(join(cwd, 'node_modules'))) {
       try {
