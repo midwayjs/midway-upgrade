@@ -10,6 +10,7 @@ import { IConfigurationInfo, IProjectInfo } from './interface';
 import * as YAML from 'js-yaml';
 import { ASTOperator, IFileAstInfo } from './ast';
 import * as ts from 'typescript';
+import * as globby from 'globby';
 import { astToValue, AST_VALUE_TYPE, createAstValue, IValueDefine, valueToAst } from './astUtils';
 const factory = ts.factory;
 
@@ -129,6 +130,16 @@ export class UpgradePlugin extends BasePlugin {
         this.projectInfo.midwayTsSourceRoot = join(cwd, 'src/apis');
       }
     }
+
+    const allFiles = await globby('**/*.ts', {
+      cwd,
+      ignore: [
+        '**/node_modules/**'
+      ]
+    });
+
+    await this.astInstance.getAstByFile(allFiles.map(fileName => resolve(cwd, fileName)));
+
     this.core.debug('projectInfo', this.projectInfo);
   }
 
@@ -137,6 +148,7 @@ export class UpgradePlugin extends BasePlugin {
     // 2 升级 3
     if (this.projectInfo.frameworkInfo.version.major === '2') {
       await this.handleConfiguration2To3();
+      await this.handleHttpDecorators2To3();
       const pkgJson = this.projectInfo.pkg.data;
       pkgJson.dependencies[this.projectInfo.frameworkInfo.info.module] = '^3.0.0';
       const notNeedUpgreade = ['@midwayjs/logger'];
@@ -234,10 +246,68 @@ export class UpgradePlugin extends BasePlugin {
       type: AST_VALUE_TYPE.AST,
       value: factory.createObjectLiteralExpression(configProps)
     }], false, configurationInfo);
+
+    // 老版本需要依赖 path 模块的 join 来处理 config，需要检测有没有其他地方使用，如果没有则移除掉
+    let code = this.astInstance.getPrinter().printFile(astInfo.file);
+    if (!code.includes('join(')) {
+      this.astInstance.removeImportFromFile(astInfo, {
+        moduleName: 'path',
+        name: ['join']
+      })
+    }
   }
 
- 
-
+  async handleHttpDecorators2To3() {
+    // @Query() name to @Query('name') name
+    // Query/Body/Param/Header
+    const decorators = ['Query', 'Body', 'Param', 'Header']
+    const allFileAstInfo = this.astInstance.getAllFileAstInfo();
+    for(const { filePath,fileAstInfo } of allFileAstInfo) {
+      const sourceFile: ts.SourceFile = fileAstInfo.file;
+      // 检测是否由 @midwayjs/decorator 引入
+      const importDefine = this.astInstance.getImportFromFile(sourceFile, '@midwayjs/decorator')[0];
+      if (!importDefine) {
+        continue;
+      }
+      const { importClause } = (importDefine as any);
+      if (importClause.namedBindings.kind !== ts.SyntaxKind.NamedImports) {
+        continue;
+      }
+      const elementNames = importClause.namedBindings.elements.map(element => {
+        return (element.propertyName?.escapedText || element.name.escapedText).toString();
+      });
+      const existsNeedInsteadDeco = elementNames.find(name => decorators.includes(name));
+      if (!existsNeedInsteadDeco) {
+        continue;
+      }
+      for(const statement of sourceFile.statements) {
+        if (statement.kind !== ts.SyntaxKind.ClassDeclaration) {
+          continue;
+        }
+        // 找到 class 中的所有方法
+        const methods: any = (statement as ts.ClassDeclaration).members.filter(member => member.kind === ts.SyntaxKind.MethodDeclaration);
+        for(const method of methods) {
+          if (!method.parameters?.length) {
+            return;
+          }
+          // 找到 方法中的参数列表
+          for(const parameter of method.parameters) {
+            (parameter as any).decorators = ((parameter as any).decorators || []).map((deco: ts.Decorator) => {
+              if (
+                deco.expression.kind === ts.SyntaxKind.CallExpression &&
+                decorators.includes((deco.expression as any).expression.escapedText) &&
+                !(deco.expression as any).arguments?.length
+              ) {
+                (deco.expression as any).arguments = [factory.createStringLiteral(parameter.name.escapedText, true)];
+              }
+              return deco;
+            })
+          }
+        }
+      }
+      this.astInstance.setAstFileChanged(filePath);
+    }
+  }
   async faas2To3() {
     const pkgJson = this.projectInfo.pkg.data;
     

@@ -85,16 +85,16 @@ export class ASTOperator {
     this.cache[fileName][0].changed = true;
   }
 
-
-  // 输出生成的文件
-  public done() {
-    const result: any = {};
-    const printer: ts.Printer = ts.createPrinter({
+  public getPrinter(): ts.Printer {
+    return ts.createPrinter({
       newLine: ts.NewLineKind.CarriageReturnLineFeed,
       removeComments: false,
     });
+  }
+
+  public getAllFileAstInfo(): { filePath: string; fileAstInfo: IFileAstInfo }[] {
     const astCache = this.cache;
-    Object.keys(astCache).forEach((filePath) => {
+    return Object.keys(astCache).map((filePath) => {
       if (/;/.test(filePath)) {
         return;
       }
@@ -108,21 +108,33 @@ export class ASTOperator {
         }
         return;
       }
+      return {
+        filePath,
+        fileAstInfo: fileCacheInfo
+      }
+    }).filter(value => !!value);
+  }
+
+
+  // 输出生成的文件
+  public done() {
+    const result: any = { files: []};
+    const printer: ts.Printer = this.getPrinter();
+    const allFileAstInfo = this.getAllFileAstInfo();
+    for(const { filePath, fileAstInfo } of allFileAstInfo) {
       // 跳过未修改的文件
-      if (!fileCacheInfo.changed) {
-        return;
+      if (!fileAstInfo.changed) {
+        continue;
       }
-      if (!result.files) {
-        result.files = [];
-      }
+      
       result.files.push(filePath);
-      const sourceFile: ts.SourceFile = fileCacheInfo.file;
+      const sourceFile: ts.SourceFile = fileAstInfo.file;
       let newCode = printer.printFile(sourceFile);
       newCode = unescape(newCode.replace(/\\u([0-9A-F]{4})/g, '%u$1'));
       const prettierCode = this.prettier(newCode);
       ensureFileSync(filePath);
       writeFileSync(filePath, prettierCode);
-    });
+    }
     return result;
   }
 
@@ -148,6 +160,7 @@ export class ASTOperator {
     return importConfigurations;
   }
 
+  // 移除import模块
   public removeImportFromFile(fileAstInfo: IFileAstInfo, moduleInfo: IDenpendencyModuleInfo) {
     const { file } = fileAstInfo;
     const { moduleName, name } = moduleInfo;
@@ -156,16 +169,11 @@ export class ASTOperator {
       return;
     }
     const namedList: any = name;
-    const importConfiguration = file.statements.find((statement: any) => {
-      if (statement.kind !== ts.SyntaxKind.ImportDeclaration) {
-        return;
-      }
-      return statement?.moduleSpecifier?.text === moduleName;
-    });
+    const importConfiguration = this.getImportFromFile(file, moduleName)[0];
     if (!importConfiguration) {
       return;
     }
-
+    // TODO: 处理多个同名模块 import
     const { importClause } = (importConfiguration as any);
     if (importClause.namedBindings.kind === ts.SyntaxKind.NamedImports) {
       const elements = importClause.namedBindings.elements;

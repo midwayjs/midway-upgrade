@@ -1,6 +1,6 @@
 {
   "name": "midway-upgrade",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "main": "dist/index",
   "typings": "dist/index.d.ts",
   "bin": {
@@ -16,9 +16,11 @@
   },
   "devDependencies": {
     "@midwayjs/cli": "^1.2.90",
+    "@midwayjs/cli-plugin-dev": "^1.2.97",
     "@types/fs-extra": "^8.1.2",
     "@types/jest": "^27.4.0",
     "@types/node": "^10",
+    "axios": "^0.25.0",
     "mwts": "^1.3.0"
   },
   "engines": {
@@ -33,8 +35,8 @@
     "build": "tsc --build",
     "lint": "mwts check",
     "lint:fix": "mwts fix",
-    "test": "mw test",
-    "cov": "mw cov",
+    "test": "mw test --forceExit",
+    "cov": "mw cov --forceExit",
     "release": "npm run build && npm publish --access=public",
     "beta": "npm run build && npm publish --tag beta "
   },
