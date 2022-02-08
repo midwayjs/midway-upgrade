@@ -1,7 +1,6 @@
 # Midway 项目一键升级工具
 
 [![npm](https://img.shields.io/npm/v/midway-upgrade.svg?style=flat)](https://www.npmjs.org/package/midway-upgrade)
-[![install size](https://packagephobia.com/badge?p=midway-upgrade)](https://packagephobia.com/result?p=midway-upgrade)
 ![node-current (tag)](https://img.shields.io/node/v/midway-upgrade/latest)
 
 
