@@ -1,5 +1,3 @@
-
-   
 import { CommandCore, exec } from '@midwayjs/command-core';
 import { DevPlugin } from '@midwayjs/cli-plugin-dev';
 const sleep = time => {
@@ -14,7 +12,7 @@ export const wait = (time?) => {
   });
 };
 export const run = async (cwd: string, options: any = {}) => {
-  let npmCmd = `npm`;
+  let npmCmd = 'npm';
   if (process.env.LANG === 'zh_CN.UTF-8') {
     npmCmd = 'npm --registry=https://registry.npmmirror.com';
   }

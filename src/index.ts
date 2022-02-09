@@ -12,4 +12,4 @@ export const upgrade = async (cwd = process.cwd(), options = {}) => {
   core.addPlugin(UpgradePlugin);
   await core.ready();
   await core.invoke(['upgrade']);
-}
+};

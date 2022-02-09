@@ -1,10 +1,15 @@
 import * as ts from 'typescript';
-import { existsSync, ensureFileSync, writeFileSync, removeSync } from 'fs-extra';
+import {
+  existsSync,
+  ensureFileSync,
+  writeFileSync,
+  removeSync,
+} from 'fs-extra';
 import * as prettier from 'prettier';
 import { createAstValue } from './astUtils';
 const factory = ts.factory;
 export enum ImportType {
-  NAMED = 'named',  // import { join } from 'path';
+  NAMED = 'named', // import { join } from 'path';
   NAMESPACED = 'namespaced', // import * as from 'path';
   NORMAL = 'normal', // import debug from debug
 }
@@ -24,7 +29,7 @@ export interface IFileAstInfo {
 
 export class ASTOperator {
   // 内部 cache
-  private cache: {[key: string]: any} = {};
+  private cache: { [key: string]: any } = {};
   // 根据文件路径获取AST，如果不存在则创建空的AST
   getAstByFile(filePath: string | string[]): IFileAstInfo[] {
     const cacheKey = [].concat(filePath).join(';');
@@ -39,7 +44,13 @@ export class ASTOperator {
         });
         const list = existsFiles.map((fileName: string) => {
           const fileAstInfo = this.getCache<IFileAstInfo[]>(fileName, () => {
-            return [{ file : program.getSourceFile(fileName), fileName, changed: false}]
+            return [
+              {
+                file: program.getSourceFile(fileName),
+                fileName,
+                changed: false,
+              },
+            ];
           });
           return fileAstInfo[0];
         });
@@ -75,7 +86,7 @@ export class ASTOperator {
     if (!this.cache) {
       this.cache = {};
     }
-    this.cache[cacheKey] = value
+    this.cache[cacheKey] = value;
   }
 
   public setAstFileChanged(fileName: string) {
@@ -92,41 +103,45 @@ export class ASTOperator {
     });
   }
 
-  public getAllFileAstInfo(): { filePath: string; fileAstInfo: IFileAstInfo }[] {
+  public getAllFileAstInfo(): {
+    filePath: string;
+    fileAstInfo: IFileAstInfo;
+  }[] {
     const astCache = this.cache;
-    return Object.keys(astCache).map((filePath) => {
-      if (/;/.test(filePath)) {
-        return;
-      }
-      const fileCacheInfo = astCache[filePath]?.[0];
-      if (!fileCacheInfo) {
-        return;
-      }
-      if (fileCacheInfo.removed) {
-        if (existsSync(fileCacheInfo.fileName)) {
-          removeSync(fileCacheInfo.fileName)
+    return Object.keys(astCache)
+      .map(filePath => {
+        if (/;/.test(filePath)) {
+          return;
         }
-        return;
-      }
-      return {
-        filePath,
-        fileAstInfo: fileCacheInfo
-      }
-    }).filter(value => !!value);
+        const fileCacheInfo = astCache[filePath]?.[0];
+        if (!fileCacheInfo) {
+          return;
+        }
+        if (fileCacheInfo.removed) {
+          if (existsSync(fileCacheInfo.fileName)) {
+            removeSync(fileCacheInfo.fileName);
+          }
+          return;
+        }
+        return {
+          filePath,
+          fileAstInfo: fileCacheInfo,
+        };
+      })
+      .filter(value => !!value);
   }
-
 
   // 输出生成的文件
   public done() {
-    const result: any = { files: []};
+    const result: any = { files: [] };
     const printer: ts.Printer = this.getPrinter();
     const allFileAstInfo = this.getAllFileAstInfo();
-    for(const { filePath, fileAstInfo } of allFileAstInfo) {
+    for (const { filePath, fileAstInfo } of allFileAstInfo) {
       // 跳过未修改的文件
       if (!fileAstInfo.changed) {
         continue;
       }
-      
+
       result.files.push(filePath);
       const sourceFile: ts.SourceFile = fileAstInfo.file;
       let newCode = printer.printFile(sourceFile);
@@ -146,22 +161,30 @@ export class ASTOperator {
     });
   }
 
-  public getImportFromFile(file: ts.SourceFile, moduleName?: string): ts.Statement[] {
-    const importConfigurations = file.statements.filter((statement: any, index) => {
-      statement._index = index;
-      if (statement.kind !== ts.SyntaxKind.ImportDeclaration) {
-        return;
+  public getImportFromFile(
+    file: ts.SourceFile,
+    moduleName?: string
+  ): ts.Statement[] {
+    const importConfigurations = file.statements.filter(
+      (statement: any, index) => {
+        statement._index = index;
+        if (statement.kind !== ts.SyntaxKind.ImportDeclaration) {
+          return;
+        }
+        if (moduleName) {
+          return statement?.moduleSpecifier?.text === moduleName;
+        }
+        return true;
       }
-      if (moduleName) {
-        return statement?.moduleSpecifier?.text === moduleName; 
-      }
-      return true;
-    });
+    );
     return importConfigurations;
   }
 
   // 移除import模块
-  public removeImportFromFile(fileAstInfo: IFileAstInfo, moduleInfo: IDenpendencyModuleInfo) {
+  public removeImportFromFile(
+    fileAstInfo: IFileAstInfo,
+    moduleInfo: IDenpendencyModuleInfo
+  ) {
     const { file } = fileAstInfo;
     const { moduleName, name } = moduleInfo;
     if (!Array.isArray(name)) {
@@ -174,11 +197,13 @@ export class ASTOperator {
       return;
     }
     // TODO: 处理多个同名模块 import
-    const { importClause } = (importConfiguration as any);
+    const { importClause } = importConfiguration as any;
     if (importClause.namedBindings.kind === ts.SyntaxKind.NamedImports) {
       const elements = importClause.namedBindings.elements;
-      importClause.namedBindings.elements =  elements.filter(element => {
-        const elementOriginName = (element.propertyName?.escapedText || element.name.escapedText).toString();
+      importClause.namedBindings.elements = elements.filter(element => {
+        const elementOriginName = (
+          element.propertyName?.escapedText || element.name.escapedText
+        ).toString();
         return !namedList.find(name => {
           return name === elementOriginName;
         });
@@ -186,14 +211,20 @@ export class ASTOperator {
 
       if (!importClause.namedBindings.elements.length) {
         (file as any).statements = file.statements.filter(originStatement => {
-          return (originStatement as any)._index !== (importConfiguration as any)._index;
+          return (
+            (originStatement as any)._index !==
+            (importConfiguration as any)._index
+          );
         });
       }
     }
   }
 
   // 向一个文件内插入import代码
-  public addImportToFile(fileAstInfo: IFileAstInfo, moduleInfo: IDenpendencyModuleInfo) {
+  public addImportToFile(
+    fileAstInfo: IFileAstInfo,
+    moduleInfo: IDenpendencyModuleInfo
+  ) {
     const { file, fileName } = fileAstInfo;
     const { moduleName, name, isNameSpace } = moduleInfo;
 
@@ -228,22 +259,22 @@ export class ASTOperator {
         undefined,
         undefined,
         this.getImportNamedBindings(importType, namedList),
-        createAstValue(moduleName),
+        createAstValue(moduleName)
       );
       (file.statements as any).unshift(importStatemanet);
       return this;
     }
 
-    const { importClause } = (importConfiguration as any);
+    const { importClause } = importConfiguration as any;
     if (importType === ImportType.NAMED) {
       // 如果都是named导入
       if (importClause.namedBindings.kind === SyntaxKind.NamedImports) {
         const elements = importClause.namedBindings.elements;
         // 移除已经存在的 named 导入
-        elements.forEach((element) => {
+        elements.forEach(element => {
           const name = element.name.escapedText; // 最终的 name
           const index = namedList.findIndex(named => {
-            return  named.alias === name || named === name;
+            return named.alias === name || named === name;
           });
           if (index !== -1) {
             namedList.splice(index, 1);
@@ -251,19 +282,25 @@ export class ASTOperator {
         });
         if (namedList.length) {
           this.setAstFileChanged(fileName);
-          namedList.forEach((importName: string | { prop: string; alias: string; }) => {
-            if (typeof importName === 'object') {
-              elements.push(factory.createImportSpecifier(
-                factory.createIdentifier(importName.prop),
-                factory.createIdentifier(importName.alias),
-              ));
-            } else {
-              elements.push(factory.createImportSpecifier(
-                undefined,
-                factory.createIdentifier(importName),
-              ));
+          namedList.forEach(
+            (importName: string | { prop: string; alias: string }) => {
+              if (typeof importName === 'object') {
+                elements.push(
+                  factory.createImportSpecifier(
+                    factory.createIdentifier(importName.prop),
+                    factory.createIdentifier(importName.alias)
+                  )
+                );
+              } else {
+                elements.push(
+                  factory.createImportSpecifier(
+                    undefined,
+                    factory.createIdentifier(importName)
+                  )
+                );
+              }
             }
-          });
+          );
         }
       }
     }
@@ -272,7 +309,6 @@ export class ASTOperator {
 
     return this;
   }
-
 
   // 获取绑定的引入的模块定义
   private getImportNamedBindings(namedType?, bindName?) {
@@ -288,62 +324,71 @@ export class ASTOperator {
           bindName.map((name: string | { prop: string; alias: string }) => {
             if (typeof name === 'object') {
               // import { xxx as xxx2 } from
-              return factory.createImportSpecifier(factory.createIdentifier(name.prop), factory.createIdentifier(name.alias));
+              return factory.createImportSpecifier(
+                factory.createIdentifier(name.prop),
+                factory.createIdentifier(name.alias)
+              );
             }
-            return factory.createImportSpecifier(undefined, factory.createIdentifier(name));
-          }),
-        ),
+            return factory.createImportSpecifier(
+              undefined,
+              factory.createIdentifier(name)
+            );
+          })
+        )
       );
     } else if (namedType === ImportType.NAMESPACED) {
       // import * as xxx from 形式
       return factory.createImportClause(
         false,
         undefined,
-        factory.createNamespaceImport(factory.createIdentifier(bindName)),
+        factory.createNamespaceImport(factory.createIdentifier(bindName))
       );
     } else {
       // import xxx from 形式
       return factory.createImportClause(
         false,
         factory.createIdentifier(bindName),
-        undefined,
+        undefined
       );
     }
   }
 
-
   getDecoratorsFromFile(fileAst: ts.SourceFile) {
     const decorators: {
       classStatement?: ts.ClassDeclaration;
-      member?: ts.ClassElement,
-      decorator: ts.Decorator
+      member?: ts.ClassElement;
+      decorator: ts.Decorator;
     }[] = [];
     fileAst.statements.forEach((statement: ts.Statement) => {
       if (statement.kind !== ts.SyntaxKind.ClassDeclaration) {
         return;
       }
       if (statement.decorators) {
-        decorators.push(...statement.decorators.map(deco => {
-          return {
-            classStatement: statement as ts.ClassDeclaration,
-            decorator: deco,
-          }
-        }));
+        decorators.push(
+          ...statement.decorators.map(deco => {
+            return {
+              classStatement: statement as ts.ClassDeclaration,
+              decorator: deco,
+            };
+          })
+        );
       }
-      
+
       const classStatement = statement as ts.ClassDeclaration;
       if (classStatement.members) {
         classStatement.members.forEach(member => {
           if (member.decorators) {
-            decorators.push(...member.decorators.map(deco => {
-              return {
-                member,
-                classStatement: classStatement,
-                decorator: deco,
-              }
-            }));
+            decorators.push(
+              ...member.decorators.map(deco => {
+                return {
+                  member,
+                  classStatement: classStatement,
+                  decorator: deco,
+                };
+              })
+            );
           }
-        })
+        });
       }
     });
     return decorators;

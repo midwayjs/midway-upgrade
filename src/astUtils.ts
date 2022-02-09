@@ -1,12 +1,12 @@
 import * as ts from 'typescript';
 const factory = ts.factory;
 // 创建AST的值，用于替换原有AST结构中的值
-export const createAstValue = (value) => {
+export const createAstValue = value => {
   let type;
   if (Array.isArray(value)) {
     type = 'array';
   } else {
-    type = ([]).toString.call(value).slice(8, -1).toLowerCase();
+    type = [].toString.call(value).slice(8, -1).toLowerCase();
   }
   switch (type) {
     case 'number':
@@ -20,17 +20,17 @@ export const createAstValue = (value) => {
         value.map((item: any) => {
           return createAstValue(item);
         }),
-        false,
+        false
       );
     case 'object':
       return ts.createObjectLiteral(
         Object.keys(value).map((key: string) => {
           return ts.createPropertyAssignment(
             ts.createIdentifier(key),
-            createAstValue(value[key]),
+            createAstValue(value[key])
           );
         }),
-        true,
+        true
       );
     case 'regexp':
       return ts.createRegularExpressionLiteral(value.toString());
@@ -38,14 +38,14 @@ export const createAstValue = (value) => {
   throw new Error(`Type ${type} not support`);
 };
 
-export const expressionToValue = (expression) => {
-  switch(expression.kind) {
+export const expressionToValue = expression => {
+  switch (expression.kind) {
     case ts.SyntaxKind.Identifier:
       const text = expression.escapedText;
       if (text === 'undefined') {
         return undefined;
       }
-      return text
+      return text;
     case ts.SyntaxKind.StringLiteral:
       return expression.text;
     case ts.SyntaxKind.FalseKeyword:
@@ -81,7 +81,7 @@ export const expressionToValue = (expression) => {
       return new RegExp(regMatch[1], regMatch[2]);
   }
   return {};
-}
+};
 
 // 获取一个文件导出的变量的值
 // export = 后如果有export xxx，则会忽略export =
@@ -120,7 +120,9 @@ export const getFileExportVariable = (file: ts.SourceFile) => {
     for (const declaration of declarations) {
       // 变量名
       const name = declaration.name.escapedText;
-      variableList[name] = formatNodeValue(expressionToValue(declaration.initializer));
+      variableList[name] = formatNodeValue(
+        expressionToValue(declaration.initializer)
+      );
     }
   }
 
@@ -132,8 +134,7 @@ export const getFileExportVariable = (file: ts.SourceFile) => {
   return exportAssignValue;
 };
 
-
-export const formatNodeValue = (value) => {
+export const formatNodeValue = value => {
   return value?._getValue ? value._getValue() : value;
 };
 
@@ -157,9 +158,9 @@ export const statementToCode = (expression: ts.Expression) => {
     newLine: ts.NewLineKind.CarriageReturnLineFeed,
     removeComments: true,
   });
-  const code = printer.printFile(file)
+  const code = printer.printFile(file);
   return code;
-}
+};
 
 export interface IValueDefine {
   type: AST_VALUE_TYPE;
@@ -174,34 +175,36 @@ export const valueToAst = (value: IValueDefine) => {
     return factory.createCallExpression(
       factory.createIdentifier(value.value),
       undefined,
-      value.arguments ? value.arguments.map(value => {
-        return valueToAst(value);
-      }) : []
+      value.arguments
+        ? value.arguments.map(value => {
+            return valueToAst(value);
+          })
+        : []
     );
   }
   if (value.type === AST_VALUE_TYPE.AST) {
     return value.value;
   }
-  return createAstValue(value.value)
-}
+  return createAstValue(value.value);
+};
 
 export const astToValue = (element: any): IValueDefine => {
   if (element.kind === ts.SyntaxKind.Identifier) {
     return {
       type: AST_VALUE_TYPE.Identifier,
       value: element.escapedText,
-    }
+    };
   } else if (element.kind === ts.SyntaxKind.CallExpression) {
     return {
       type: AST_VALUE_TYPE.Func,
       value: element.expression.escapedText,
       arguments: element.arguments.map(element => {
         return astToValue(element);
-      })
-    }
+      }),
+    };
   }
   return {
     type: AST_VALUE_TYPE.String,
-    value: element.text
-  }
-}
+    value: element.text,
+  };
+};

@@ -1,5 +1,5 @@
-import { IFileAstInfo } from "./ast";
-import { MidwayFramework } from "./constants";
+import { IFileAstInfo } from './ast';
+import { MidwayFramework } from './constants';
 import * as ts from 'typescript';
 
 export interface IProjectInfo {
@@ -7,19 +7,19 @@ export interface IProjectInfo {
   pkg: {
     file: string;
     data: any;
-  },
-  framework: MidwayFramework,
+  };
+  framework: MidwayFramework;
   withServerlessYml: boolean;
   serverlessYml: {
     file: string;
     data: IServerlessYmlData;
-  }
+  };
   frameworkInfo?: {
     version: IVersion;
     info: ImidwayFrameworkInfo;
   };
-  hooksInfo?: IVersion,
-  intergrationInfo?: IVersion,
+  hooksInfo?: IVersion;
+  intergrationInfo?: IVersion;
   midwayTsSourceRoot: string;
 }
 
@@ -27,13 +27,12 @@ export interface IVersion {
   major: string;
   minor: string;
   patch: string;
-};
-
+}
 
 export interface IServerlessYmlData {
   provider?: {
     name?: string;
-  }
+  };
 }
 
 export interface ImidwayFrameworkInfo {
