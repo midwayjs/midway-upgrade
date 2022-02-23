@@ -8,6 +8,7 @@ import {
   readdir,
   readFileSync,
   stat,
+  writeFileSync,
   writeFile,
   remove,
 } from 'fs-extra';
@@ -15,7 +16,7 @@ import { join, resolve } from 'path';
 import { MidwayFramework, midwayFrameworkInfo } from './constants';
 import { IConfigurationInfo, IProjectInfo } from './interface';
 import * as YAML from 'js-yaml';
-import { ASTOperator, IFileAstInfo } from './ast';
+import { ASTOperator, IFileAstInfo, ImportType } from './ast';
 import * as ts from 'typescript';
 import * as globby from 'globby';
 import {
@@ -162,7 +163,7 @@ export class UpgradePlugin extends BasePlugin {
       const pkgJson = this.projectInfo.pkg.data;
       pkgJson.dependencies[this.projectInfo.frameworkInfo.info.module] =
         '^3.0.0';
-      const notNeedUpgreade = ['@midwayjs/logger'];
+      const notNeedUpgreade = ['@midwayjs/logger', '@midwayjs/egg-ts-helper'];
       Object.keys(pkgJson.dependencies).map(depName => {
         if (
           !depName.startsWith('@midwayjs/') ||
@@ -199,7 +200,7 @@ export class UpgradePlugin extends BasePlugin {
     if (!this.canUpgrade) {
       const { version } = this.projectInfo.frameworkInfo;
       return this.core.cli.log(
-        `The current framework version (${MidwayFramework.FaaS} ${version.major}.${version.minor}) does not support upgrading`
+        `The current framework version (${this.projectInfo.framework} ${version.major}.${version.minor}) does not support upgrading`
       );
     }
 
@@ -221,13 +222,20 @@ export class UpgradePlugin extends BasePlugin {
     const configurationInfo = this.getConfiguration();
     const { astInfo } = configurationInfo;
 
-    // 添加框架依赖
-    const frameworkName = frameworkInfo.info.type + 'Framework';
-    this.astInstance.addImportToFile(astInfo, {
-      moduleName: frameworkInfo.info.module,
-      name: frameworkName,
-      isNameSpace: true,
-    });
+    let frameworkName = frameworkInfo.info.type + 'Framework';
+    // 检测有没有引入框架
+    const importInfo = this.astInstance.getImportedModuleInfo(astInfo, frameworkInfo.info.module);
+    if (importInfo?.type === ImportType.NAMESPACED) {
+      frameworkName = importInfo.name;
+    } else {
+      // 没有引入框架的时候
+      // 添加框架依赖
+      this.astInstance.addImportToFile(astInfo, {
+        moduleName: frameworkInfo.info.module,
+        name: frameworkName,
+        isNameSpace: true,
+      });
+    }
 
     // 添加到 configuration 的 imports 中
     await this.setConfigurationDecorator(
@@ -246,6 +254,12 @@ export class UpgradePlugin extends BasePlugin {
         allFiles.forEach(file => {
           const envConfigFileReg = /^config\.(\w+)\.ts$/;
           if (envConfigFileReg.test(file)) {
+            const configFile = join(envConfigFilesDir, file);
+            const configData = readFileSync(configFile, 'utf-8');
+            // 避免config文件是空的
+            if (!configData.includes('export ')) {
+              writeFileSync(configFile, configData + '\nexport default {};');
+            }
             const res = envConfigFileReg.exec(file);
             const env = res[1];
             const envVarName = env + 'Config';

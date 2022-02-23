@@ -42,7 +42,7 @@
     "test": "mw test --forceExit",
     "cov": "mw cov --forceExit",
     "release": "npm run build && npm publish --access=public",
-    "beta": "npm run build && npm publish --tag beta "
+    "beta": "npm run build && npm publish --tag beta"
   },
   "repository": {
     "type": "git",

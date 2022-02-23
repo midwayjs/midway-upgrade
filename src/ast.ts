@@ -220,6 +220,48 @@ export class ASTOperator {
     }
   }
 
+  // 获取文件中已经引入的模块信息
+  public getImportedModuleInfo(
+    fileAstInfo: IFileAstInfo,
+    moduleName,
+  ) {
+    const { file } = fileAstInfo;
+    const { SyntaxKind } = ts;
+    const importConfiguration = file.statements.find((statement: any) => {
+      if (statement.kind !== SyntaxKind.ImportDeclaration) {
+        return;
+      }
+      return statement?.moduleSpecifier?.text === moduleName;
+    });
+    if (!importConfiguration) {
+      return;
+    }
+
+    const { importClause } = importConfiguration as any;
+    // import { xxx } from 'xxx'
+    if (importClause.namedBindings.kind === ts.SyntaxKind.NamedImports) {
+      const elements = importClause.namedBindings.elements;
+      return {
+        type: ImportType.NAMED,
+        elements,
+        names: elements.map(element => {
+          return element.name.escapedText; // 最终的 name
+        }),
+      }
+    }
+    // import * as xxxx from 'xxx'
+    if (importClause.namedBindings.kind === ts.SyntaxKind.NamespaceImport) {
+      return {
+        type: ImportType.NAMESPACED,
+        name: importClause.namedBindings.name.escapedText
+      }
+    }
+    return {
+      type: ImportType.NORMAL,
+      name: importClause.name.escapedText,
+    }
+  }
+
   // 向一个文件内插入import代码
   public addImportToFile(
     fileAstInfo: IFileAstInfo,
@@ -244,16 +286,9 @@ export class ASTOperator {
     } else {
       // import 'mysql2';
     }
-
-    const { SyntaxKind } = ts;
-    const importConfiguration = file.statements.find((statement: any) => {
-      if (statement.kind !== SyntaxKind.ImportDeclaration) {
-        return;
-      }
-      return statement?.moduleSpecifier?.text === moduleName;
-    });
-    // 如果整个代码文件中没有引入过对应的模块，那么比较简单，直接插入就可以了
-    if (!importConfiguration) {
+    const importInfo = this.getImportedModuleInfo(fileAstInfo, moduleName);
+     // 如果整个代码文件中没有引入过对应的模块，那么比较简单，直接插入就可以了
+    if (!importInfo) {
       this.setAstFileChanged(fileName);
       const importStatemanet = ts.createImportDeclaration(
         undefined,
@@ -265,14 +300,11 @@ export class ASTOperator {
       return this;
     }
 
-    const { importClause } = importConfiguration as any;
     if (importType === ImportType.NAMED) {
       // 如果都是named导入
-      if (importClause.namedBindings.kind === SyntaxKind.NamedImports) {
-        const elements = importClause.namedBindings.elements;
+      if (importInfo.type === ImportType.NAMED) {
         // 移除已经存在的 named 导入
-        elements.forEach(element => {
-          const name = element.name.escapedText; // 最终的 name
+        importInfo.names.forEach(name => {
           const index = namedList.findIndex(named => {
             return named.alias === name || named === name;
           });
@@ -285,14 +317,14 @@ export class ASTOperator {
           namedList.forEach(
             (importName: string | { prop: string; alias: string }) => {
               if (typeof importName === 'object') {
-                elements.push(
+                importInfo.elements.push(
                   factory.createImportSpecifier(
                     factory.createIdentifier(importName.prop),
                     factory.createIdentifier(importName.alias)
                   )
                 );
               } else {
-                elements.push(
+                importInfo.elements.push(
                   factory.createImportSpecifier(
                     undefined,
                     factory.createIdentifier(importName)
@@ -304,6 +336,7 @@ export class ASTOperator {
         }
       }
     }
+    // 如果是 
 
     // TODO: 否则，需要检测当前已引入的类型是什么
 
