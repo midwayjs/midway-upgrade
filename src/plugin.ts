@@ -190,6 +190,9 @@ export class UpgradePlugin extends BasePlugin {
         case MidwayFramework.FaaS:
           await this.faas2To3();
           break;
+        case MidwayFramework.Web:
+          await this.web2to3();
+          break;
       }
       this.canUpgrade = true;
       return;
@@ -392,6 +395,11 @@ export class UpgradePlugin extends BasePlugin {
       pkgJson.devDependencies['@midwayjs/serverless-scf-starter'] = '^3.0.0';
       pkgJson.devDependencies['@midwayjs/serverless-scf-trigger'] = '^3.0.0';
     }
+  }
+
+  async web2to3() {
+    const pkgJson = this.projectInfo.pkg.data;
+    pkgJson.devDependencies['egg-mock'] = '^4.2.0';
   }
 
   private getCwd() {
