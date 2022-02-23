@@ -221,10 +221,7 @@ export class ASTOperator {
   }
 
   // 获取文件中已经引入的模块信息
-  public getImportedModuleInfo(
-    fileAstInfo: IFileAstInfo,
-    moduleName,
-  ) {
+  public getImportedModuleInfo(fileAstInfo: IFileAstInfo, moduleName) {
     const { file } = fileAstInfo;
     const { SyntaxKind } = ts;
     const importConfiguration = file.statements.find((statement: any) => {
@@ -247,19 +244,19 @@ export class ASTOperator {
         names: elements.map(element => {
           return element.name.escapedText; // 最终的 name
         }),
-      }
+      };
     }
     // import * as xxxx from 'xxx'
     if (importClause.namedBindings.kind === ts.SyntaxKind.NamespaceImport) {
       return {
         type: ImportType.NAMESPACED,
-        name: importClause.namedBindings.name.escapedText
-      }
+        name: importClause.namedBindings.name.escapedText,
+      };
     }
     return {
       type: ImportType.NORMAL,
       name: importClause.name.escapedText,
-    }
+    };
   }
 
   // 向一个文件内插入import代码
@@ -287,7 +284,7 @@ export class ASTOperator {
       // import 'mysql2';
     }
     const importInfo = this.getImportedModuleInfo(fileAstInfo, moduleName);
-     // 如果整个代码文件中没有引入过对应的模块，那么比较简单，直接插入就可以了
+    // 如果整个代码文件中没有引入过对应的模块，那么比较简单，直接插入就可以了
     if (!importInfo) {
       this.setAstFileChanged(fileName);
       const importStatemanet = ts.createImportDeclaration(
@@ -336,7 +333,7 @@ export class ASTOperator {
         }
       }
     }
-    // 如果是 
+    // 如果是
 
     // TODO: 否则，需要检测当前已引入的类型是什么
 

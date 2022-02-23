@@ -227,7 +227,10 @@ export class UpgradePlugin extends BasePlugin {
 
     let frameworkName = frameworkInfo.info.type + 'Framework';
     // 检测有没有引入框架
-    const importInfo = this.astInstance.getImportedModuleInfo(astInfo, frameworkInfo.info.module);
+    const importInfo = this.astInstance.getImportedModuleInfo(
+      astInfo,
+      frameworkInfo.info.module
+    );
     if (importInfo?.type === ImportType.NAMESPACED) {
       frameworkName = importInfo.name;
     } else {
