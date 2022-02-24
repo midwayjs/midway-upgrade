@@ -26,6 +26,7 @@ import {
   IValueDefine,
   valueToAst,
 } from './astUtils';
+import { saveYaml } from './utils';
 const factory = ts.factory;
 
 export class UpgradePlugin extends BasePlugin {
@@ -208,6 +209,12 @@ export class UpgradePlugin extends BasePlugin {
     }
 
     this.astInstance.done();
+    if (this.projectInfo.serverlessYml.file) {
+      saveYaml(
+        this.projectInfo.serverlessYml.file,
+        this.projectInfo.serverlessYml.data
+      );
+    }
     await writeFile(
       this.projectInfo.pkg.file,
       JSON.stringify(this.projectInfo.pkg.data, null, 2)
@@ -615,5 +622,19 @@ export class UpgradePlugin extends BasePlugin {
       'configuration.ts'
     );
     this.astInstance.setAstFileChanged(configurationFilePath);
+  }
+
+  // 代码全局替换
+  globalInsteadCode(allSourceFileAstInfos, fromTo) {
+    for (const { filePath } of allSourceFileAstInfos) {
+      if (!existsSync(filePath)) {
+        continue;
+      }
+      let fileStr = readFileSync(filePath).toString();
+      for (const { from, to } of fromTo) {
+        fileStr = fileStr.replace(from, to);
+      }
+      writeFileSync(filePath, fileStr);
+    }
   }
 }
