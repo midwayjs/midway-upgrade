@@ -1,6 +1,8 @@
-import { IFileAstInfo } from './ast';
+import { IDenpendencyModuleInfo, IFileAstInfo } from './ast';
 import { MidwayFramework } from './constants';
 import * as ts from 'typescript';
+import { IValueDefine } from './astUtils';
+import { IPropertyInfo } from './configuration';
 
 export interface IProjectInfo {
   cwd: string;
@@ -44,4 +46,19 @@ export interface IConfigurationInfo {
   astInfo: IFileAstInfo;
   class: ts.ClassDeclaration;
   func: ts.CallExpression;
+}
+
+export interface IPluginsInfo {
+  property?: {
+    name: string;
+    info: IPropertyInfo;
+  }[];
+  dependencies?: {
+    name: string;
+    version: string;
+  }[];
+  imports?: IValueDefine[];
+  modImport?: IDenpendencyModuleInfo[];
+  onReadyBlocks?: string[];
+  tips?: string[];
 }
