@@ -77,7 +77,7 @@ export class UpgradePlugin extends BasePlugin {
       data: pkgJson,
     };
 
-    const framework = midwayFrameworkInfo.find(frameworkInfo => {
+    const framework = this.getMidwayFrameworkInfo().find(frameworkInfo => {
       const version = this.getModuleVersion(frameworkInfo.module);
       if (!version) {
         return;
@@ -155,6 +155,10 @@ export class UpgradePlugin extends BasePlugin {
     );
 
     this.core.debug('projectInfo', this.projectInfo);
+  }
+
+  getMidwayFrameworkInfo() {
+    return midwayFrameworkInfo;
   }
 
   async handleFrameworkUpgrade() {
