@@ -37,6 +37,7 @@ export class Configuration {
   configurationType: ConfigurationType = ConfigurationType.CLASS;
   configurationClass: ts.ClassDeclaration;
   configurationFunc: ts.CallExpression;
+  configurationAstInfo: IFileAstInfo;
   constructor(projectInfo: IProjectInfo, ast: ASTOperator) {
     this.astInstance = ast;
     this.projectInfo = projectInfo;
@@ -45,27 +46,30 @@ export class Configuration {
   public get(): IConfigurationInfo {
     const { midwayTsSourceRoot } = this.projectInfo;
     // 确保存在
-    const configurationFilePath = resolve(
-      midwayTsSourceRoot,
-      'configuration.ts'
-    );
-    let configurationAstInfo: IFileAstInfo;
-    if (existsSync(configurationFilePath)) {
-      const configurationAstList = this.astInstance.getAstByFile(
-        configurationFilePath
+    let configurationAstInfo: IFileAstInfo = this.configurationAstInfo;
+    if (!configurationAstInfo) {
+      const configurationFilePath = resolve(
+        midwayTsSourceRoot,
+        'configuration.ts'
       );
-      configurationAstInfo = configurationAstList[0];
-    } else {
-      configurationAstInfo = {
-        file: ts.createSourceFile(
-          configurationFilePath,
-          '',
-          ts.ScriptTarget.ES2018
-        ),
-        fileName: configurationFilePath,
-        changed: true,
-      };
-      this.astInstance.setCache(configurationFilePath, [configurationAstInfo]);
+      if (existsSync(configurationFilePath)) {
+        const configurationAstList = this.astInstance.getAstByFile(
+          configurationFilePath
+        );
+        configurationAstInfo = configurationAstList[0];
+      } else {
+        configurationAstInfo = {
+          file: ts.createSourceFile(
+            configurationFilePath,
+            '',
+            ts.ScriptTarget.ES2018
+          ),
+          fileName: configurationFilePath,
+          changed: true,
+        };
+        this.astInstance.setCache(configurationFilePath, [configurationAstInfo]);
+      }
+      this.configurationAstInfo = configurationAstInfo;
     }
 
     let configurationClass = configurationAstInfo.file.statements.find(
