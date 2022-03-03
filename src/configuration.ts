@@ -67,7 +67,9 @@ export class Configuration {
           fileName: configurationFilePath,
           changed: true,
         };
-        this.astInstance.setCache(configurationFilePath, [configurationAstInfo]);
+        this.astInstance.setCache(configurationFilePath, [
+          configurationAstInfo,
+        ]);
       }
       this.configurationAstInfo = configurationAstInfo;
     }

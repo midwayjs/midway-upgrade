@@ -497,11 +497,16 @@ export class ASTOperator {
     }
   }
 
-  insteadImportModuleName(fileAstInfo: IFileAstInfo, originName: string, targetName: string) {
+  insteadImportModuleName(
+    fileAstInfo: IFileAstInfo,
+    originName: string,
+    targetName: string
+  ) {
     const fileAst: any = fileAstInfo.file;
     const imports = this.getImportFromFile(fileAst, originName);
-    for(const importStatement of imports) {
-      (importStatement as ts.ImportDeclaration as any).moduleSpecifier = factory.createStringLiteral(targetName);
+    for (const importStatement of imports) {
+      (importStatement as ts.ImportDeclaration as any).moduleSpecifier =
+        factory.createStringLiteral(targetName);
     }
   }
 }

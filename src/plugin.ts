@@ -228,7 +228,11 @@ export class UpgradePlugin extends BasePlugin {
     if (existsSync(nmDir)) {
       await remove(nmDir);
     }
+    this.core.cli.log('');
     this.core.cli.log('Upgrade success!');
+    this.core.cli.log('');
+    this.core.cli.log('Please reinstall the dependencies, e.g., npm install');
+    this.core.cli.log('');
   }
 
   // 升级 configuration 从2版本到3版本
@@ -277,6 +281,14 @@ export class UpgradePlugin extends BasePlugin {
             // 避免config文件是空的
             if (!configData.includes('export ')) {
               writeFileSync(configFile, configData + '\nexport default {};');
+            } else if (/(^|\s|\n)export\s*=\s*/.test(configData)) {
+              writeFileSync(
+                configFile,
+                configData.replace(
+                  /(^|\s|\n)export\s*=\s*/,
+                  '$1export default '
+                )
+              );
             }
             const res = envConfigFileReg.exec(file);
             const env = res[1];
