@@ -432,7 +432,7 @@ export class ASTOperator {
     targetModule?,
     targetName?,
     isAliasToOrigin?: boolean
-  ) {
+  ): boolean {
     const fileAst: any = fileAstInfo.file;
     const imports = this.getImportFromFile(fileAst, originModule);
     let changed = false;
@@ -495,6 +495,7 @@ export class ASTOperator {
     if (changed) {
       this.setAstFileChanged(fileAstInfo.fileName);
     }
+    return changed;
   }
 
   insteadImportModuleName(

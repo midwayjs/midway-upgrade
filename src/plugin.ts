@@ -70,6 +70,7 @@ export class UpgradePlugin extends BasePlugin {
       this.projectInfo,
       this.astInstance
     );
+    this.configurationInstance.get();
 
     const pkgJson = JSON.parse(readFileSync(pkgFile, 'utf-8'));
     this.projectInfo.pkg = {
@@ -165,6 +166,7 @@ export class UpgradePlugin extends BasePlugin {
     // 2 升级 3
     if (this.projectInfo.frameworkInfo.version.major === '2') {
       await this.handleConfiguration2To3();
+      await this.insteadDecorator2To3();
       await this.handleHttpDecorators2To3();
       const pkgJson = this.projectInfo.pkg.data;
       pkgJson.dependencies[this.projectInfo.frameworkInfo.info.module] =
@@ -341,6 +343,55 @@ export class UpgradePlugin extends BasePlugin {
         moduleName: 'path',
         name: ['join'],
       });
+    }
+  }
+
+  async insteadDecorator2To3() {
+    // 替换旧的装饰器
+    const allFileAstInfo = this.astInstance.getAllFileAstInfo();
+    let isImportValidate = false;
+    for (const { fileAstInfo } of allFileAstInfo) {
+      const validateDecoRes = ['Validate', 'Rule', 'RuleType'].map(deco => {
+        return this.astInstance.insteadImport(
+          fileAstInfo,
+          '@midwayjs/decorator',
+          deco,
+          '@midwayjs/validate',
+          deco
+        );
+      });
+      if (validateDecoRes.includes(true)) {
+        isImportValidate = true;
+      }
+    }
+
+    // 引入 @midwayjs/validate
+    if (isImportValidate) {
+      // 检测有没有引入框架
+      const configurationInfo = this.configurationInstance.get();
+      const { astInfo } = configurationInfo;
+      const importInfo = this.astInstance.getImportedModuleInfo(
+        astInfo,
+        '@midwayjs/validate'
+      );
+      let validateComponnetName = 'validateComp';
+      if (importInfo?.type === ImportType.NAMESPACED) {
+        validateComponnetName = importInfo.name;
+      } else {
+        // 没有引入框架的时候
+        // 添加框架依赖
+        this.astInstance.addImportToFile(astInfo, {
+          moduleName: '@midwayjs/validate',
+          name: validateComponnetName,
+          isNameSpace: true,
+        });
+      }
+      await this.configurationInstance.setDecorator(
+        'imports',
+        [{ type: AST_VALUE_TYPE.Identifier, value: validateComponnetName }],
+        false,
+        configurationInfo
+      );
     }
   }
 
