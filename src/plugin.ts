@@ -70,7 +70,6 @@ export class UpgradePlugin extends BasePlugin {
       this.projectInfo,
       this.astInstance
     );
-    this.configurationInstance.get();
 
     const pkgJson = JSON.parse(readFileSync(pkgFile, 'utf-8'));
     this.projectInfo.pkg = {
@@ -155,6 +154,7 @@ export class UpgradePlugin extends BasePlugin {
       allFiles.map(fileName => resolve(cwd, fileName))
     );
 
+    this.configurationInstance.get();
     this.core.debug('projectInfo', this.projectInfo);
   }
 
@@ -350,13 +350,14 @@ export class UpgradePlugin extends BasePlugin {
     // 替换旧的装饰器
     const allFileAstInfo = this.astInstance.getAllFileAstInfo();
     let isImportValidate = false;
+    const validateModule = '@midwayjs/validate';
     for (const { fileAstInfo } of allFileAstInfo) {
       const validateDecoRes = ['Validate', 'Rule', 'RuleType'].map(deco => {
         return this.astInstance.insteadImport(
           fileAstInfo,
           '@midwayjs/decorator',
           deco,
-          '@midwayjs/validate',
+          validateModule,
           deco
         );
       });
@@ -367,12 +368,14 @@ export class UpgradePlugin extends BasePlugin {
 
     // 引入 @midwayjs/validate
     if (isImportValidate) {
+      const pkgJson = this.projectInfo.pkg.data;
+      pkgJson.dependencies[validateModule] = '^3.0.0';
       // 检测有没有引入框架
       const configurationInfo = this.configurationInstance.get();
       const { astInfo } = configurationInfo;
       const importInfo = this.astInstance.getImportedModuleInfo(
         astInfo,
-        '@midwayjs/validate'
+        validateModule
       );
       let validateComponnetName = 'validateComp';
       if (importInfo?.type === ImportType.NAMESPACED) {
@@ -381,7 +384,7 @@ export class UpgradePlugin extends BasePlugin {
         // 没有引入框架的时候
         // 添加框架依赖
         this.astInstance.addImportToFile(astInfo, {
-          moduleName: '@midwayjs/validate',
+          moduleName: validateModule,
           name: validateComponnetName,
           isNameSpace: true,
         });
