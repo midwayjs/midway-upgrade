@@ -18,7 +18,7 @@ describe('index.test.ts', () => {
     await close();
     expect(res.data).toEqual(`Hello ${now}`);
   });
-  it.only('web 2 to 3', async () => {
+  it('web 2 to 3', async () => {
     const baseDir = resolve(__dirname, './fixtures/web-v2');
     const target = resolve(__dirname, './fixtures/tmp/web-v2');
     if (existsSync(target)) {
