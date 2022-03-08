@@ -169,7 +169,11 @@ export class UpgradePlugin extends BasePlugin {
       const pkgJson = this.projectInfo.pkg.data;
       pkgJson.dependencies[this.projectInfo.frameworkInfo.info.module] =
         '^3.0.0';
-      const notNeedUpgreade = ['@midwayjs/logger', '@midwayjs/egg-ts-helper'];
+      const notNeedUpgreade = [
+        '@midwayjs/logger',
+        '@midwayjs/egg-ts-helper',
+        '@midwayjs/luckyeye',
+      ];
       Object.keys(pkgJson.dependencies).map(depName => {
         if (
           !depName.startsWith('@midwayjs/') ||
