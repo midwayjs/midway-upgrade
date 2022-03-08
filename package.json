@@ -1,6 +1,6 @@
 {
   "name": "midway-upgrade",
-  "version": "0.0.4",
+  "version": "0.0.10",
   "main": "dist/index",
   "typings": "dist/index.d.ts",
   "bin": {

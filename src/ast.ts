@@ -423,4 +423,91 @@ export class ASTOperator {
     });
     return decorators;
   }
+
+  // 替换引入
+  insteadImport(
+    fileAstInfo: IFileAstInfo,
+    originModule,
+    originName,
+    targetModule?,
+    targetName?,
+    isAliasToOrigin?: boolean
+  ): boolean {
+    const fileAst: any = fileAstInfo.file;
+    const imports = this.getImportFromFile(fileAst, originModule);
+    let changed = false;
+    for (const importStatement of imports) {
+      const statement = importStatement as ts.ImportDeclaration;
+      if (
+        statement?.importClause?.namedBindings?.kind !==
+        ts.SyntaxKind.NamedImports
+      ) {
+        continue;
+      }
+      const elements = Array.from(
+        statement.importClause.namedBindings.elements
+      );
+      for (const element of elements) {
+        const name: string = element.name.escapedText.toString();
+        if (element.propertyName?.escapedText === originName) {
+          changed = true;
+          this.removeImportFromFile(fileAstInfo, {
+            moduleName: originModule,
+            name: [originName],
+          });
+          // propertyName = FaaSContext
+          // targetName = Context
+          // import { FaaSContext as name } from  => import { Context as name } from
+          // import { FaaSContext as Context } from  => import { Context } from
+          if (name !== targetName) {
+            this.addImportToFile(fileAstInfo, {
+              moduleName: targetModule,
+              name: [{ prop: targetName, alias: originName }],
+            });
+          } else {
+            this.addImportToFile(fileAstInfo, {
+              moduleName: targetModule,
+              name: [targetName],
+            });
+          }
+        } else if (name === originName) {
+          // import { name } from => import { targetName as originName } from
+          this.removeImportFromFile(fileAstInfo, {
+            moduleName: originModule,
+            name: [originName],
+          });
+          changed = true;
+          if (!targetModule) {
+            // 删除
+          } else {
+            this.addImportToFile(fileAstInfo, {
+              moduleName: targetModule,
+              name: [
+                isAliasToOrigin
+                  ? { prop: targetName, alias: originName }
+                  : targetName,
+              ],
+            });
+          }
+        }
+      }
+    }
+    if (changed) {
+      this.setAstFileChanged(fileAstInfo.fileName);
+    }
+    return changed;
+  }
+
+  insteadImportModuleName(
+    fileAstInfo: IFileAstInfo,
+    originName: string,
+    targetName: string
+  ) {
+    const fileAst: any = fileAstInfo.file;
+    const imports = this.getImportFromFile(fileAst, originName);
+    for (const importStatement of imports) {
+      (importStatement as ts.ImportDeclaration as any).moduleSpecifier =
+        factory.createStringLiteral(targetName);
+    }
+  }
 }

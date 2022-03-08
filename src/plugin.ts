@@ -14,23 +14,20 @@ import {
 } from 'fs-extra';
 import { join, resolve } from 'path';
 import { MidwayFramework, midwayFrameworkInfo } from './constants';
-import { IConfigurationInfo, IProjectInfo } from './interface';
+import { IProjectInfo } from './interface';
 import * as YAML from 'js-yaml';
-import { ASTOperator, IFileAstInfo, ImportType } from './ast';
+import { ASTOperator, ImportType } from './ast';
 import * as ts from 'typescript';
 import * as globby from 'globby';
-import {
-  astToValue,
-  AST_VALUE_TYPE,
-  createAstValue,
-  IValueDefine,
-  valueToAst,
-} from './astUtils';
+import { AST_VALUE_TYPE } from './astUtils';
+import { saveYaml } from './utils';
+import { Configuration } from './configuration';
 const factory = ts.factory;
 
 export class UpgradePlugin extends BasePlugin {
   canUpgrade = false;
   astInstance: ASTOperator;
+  configurationInstance: Configuration;
 
   projectInfo: IProjectInfo = {
     cwd: process.cwd(),
@@ -69,13 +66,18 @@ export class UpgradePlugin extends BasePlugin {
 
     this.astInstance = new ASTOperator();
 
+    this.configurationInstance = new Configuration(
+      this.projectInfo,
+      this.astInstance
+    );
+
     const pkgJson = JSON.parse(readFileSync(pkgFile, 'utf-8'));
     this.projectInfo.pkg = {
       file: pkgFile,
       data: pkgJson,
     };
 
-    const framework = midwayFrameworkInfo.find(frameworkInfo => {
+    const framework = this.getMidwayFrameworkInfo().find(frameworkInfo => {
       const version = this.getModuleVersion(frameworkInfo.module);
       if (!version) {
         return;
@@ -152,18 +154,28 @@ export class UpgradePlugin extends BasePlugin {
       allFiles.map(fileName => resolve(cwd, fileName))
     );
 
+    this.configurationInstance.get();
     this.core.debug('projectInfo', this.projectInfo);
+  }
+
+  getMidwayFrameworkInfo() {
+    return midwayFrameworkInfo;
   }
 
   async handleFrameworkUpgrade() {
     // 2 升级 3
     if (this.projectInfo.frameworkInfo.version.major === '2') {
       await this.handleConfiguration2To3();
+      await this.insteadDecorator2To3();
       await this.handleHttpDecorators2To3();
       const pkgJson = this.projectInfo.pkg.data;
       pkgJson.dependencies[this.projectInfo.frameworkInfo.info.module] =
         '^3.0.0';
-      const notNeedUpgreade = ['@midwayjs/logger', '@midwayjs/egg-ts-helper'];
+      const notNeedUpgreade = [
+        '@midwayjs/logger',
+        '@midwayjs/egg-ts-helper',
+        '@midwayjs/luckyeye',
+      ];
       Object.keys(pkgJson.dependencies).map(depName => {
         if (
           !depName.startsWith('@midwayjs/') ||
@@ -208,6 +220,12 @@ export class UpgradePlugin extends BasePlugin {
     }
 
     this.astInstance.done();
+    if (this.projectInfo.serverlessYml.file) {
+      saveYaml(
+        this.projectInfo.serverlessYml.file,
+        this.projectInfo.serverlessYml.data
+      );
+    }
     await writeFile(
       this.projectInfo.pkg.file,
       JSON.stringify(this.projectInfo.pkg.data, null, 2)
@@ -216,13 +234,17 @@ export class UpgradePlugin extends BasePlugin {
     if (existsSync(nmDir)) {
       await remove(nmDir);
     }
+    this.core.cli.log('');
     this.core.cli.log('Upgrade success!');
+    this.core.cli.log('');
+    this.core.cli.log('Please reinstall the dependencies, e.g., npm install');
+    this.core.cli.log('');
   }
 
   // 升级 configuration 从2版本到3版本
   async handleConfiguration2To3() {
     const { frameworkInfo, midwayTsSourceRoot } = this.projectInfo;
-    const configurationInfo = this.getConfiguration();
+    const configurationInfo = this.configurationInstance.get();
     const { astInfo } = configurationInfo;
 
     let frameworkName = frameworkInfo.info.type + 'Framework';
@@ -244,7 +266,7 @@ export class UpgradePlugin extends BasePlugin {
     }
 
     // 添加到 configuration 的 imports 中
-    await this.setConfigurationDecorator(
+    await this.configurationInstance.setDecorator(
       'imports',
       [{ type: AST_VALUE_TYPE.Identifier, value: frameworkName }],
       false,
@@ -265,6 +287,14 @@ export class UpgradePlugin extends BasePlugin {
             // 避免config文件是空的
             if (!configData.includes('export ')) {
               writeFileSync(configFile, configData + '\nexport default {};');
+            } else if (/(^|\s|\n)export\s*=\s*/.test(configData)) {
+              writeFileSync(
+                configFile,
+                configData.replace(
+                  /(^|\s|\n)export\s*=\s*/,
+                  '$1export default '
+                )
+              );
             }
             const res = envConfigFileReg.exec(file);
             const env = res[1];
@@ -287,14 +317,14 @@ export class UpgradePlugin extends BasePlugin {
     }
     // 把 config 进行替换
     // 移除老的
-    await this.setConfigurationDecorator(
+    await this.configurationInstance.setDecorator(
       'importConfigs',
       [],
       true,
       configurationInfo
     );
     // 添加新的
-    await this.setConfigurationDecorator(
+    await this.configurationInstance.setDecorator(
       'importConfigs',
       [
         {
@@ -313,6 +343,58 @@ export class UpgradePlugin extends BasePlugin {
         moduleName: 'path',
         name: ['join'],
       });
+    }
+  }
+
+  async insteadDecorator2To3() {
+    // 替换旧的装饰器
+    const allFileAstInfo = this.astInstance.getAllFileAstInfo();
+    let isImportValidate = false;
+    const validateModule = '@midwayjs/validate';
+    for (const { fileAstInfo } of allFileAstInfo) {
+      const validateDecoRes = ['Validate', 'Rule', 'RuleType'].map(deco => {
+        return this.astInstance.insteadImport(
+          fileAstInfo,
+          '@midwayjs/decorator',
+          deco,
+          validateModule,
+          deco
+        );
+      });
+      if (validateDecoRes.includes(true)) {
+        isImportValidate = true;
+      }
+    }
+
+    // 引入 @midwayjs/validate
+    if (isImportValidate) {
+      const pkgJson = this.projectInfo.pkg.data;
+      pkgJson.dependencies[validateModule] = '^3.0.0';
+      // 检测有没有引入框架
+      const configurationInfo = this.configurationInstance.get();
+      const { astInfo } = configurationInfo;
+      const importInfo = this.astInstance.getImportedModuleInfo(
+        astInfo,
+        validateModule
+      );
+      let validateComponnetName = 'validateComp';
+      if (importInfo?.type === ImportType.NAMESPACED) {
+        validateComponnetName = importInfo.name;
+      } else {
+        // 没有引入框架的时候
+        // 添加框架依赖
+        this.astInstance.addImportToFile(astInfo, {
+          moduleName: validateModule,
+          name: validateComponnetName,
+          isNameSpace: true,
+        });
+      }
+      await this.configurationInstance.setDecorator(
+        'imports',
+        [{ type: AST_VALUE_TYPE.Identifier, value: validateComponnetName }],
+        false,
+        configurationInfo
+      );
     }
   }
 
@@ -433,187 +515,17 @@ export class UpgradePlugin extends BasePlugin {
     return formatModuleVersion(version);
   }
 
-  private getConfiguration(): IConfigurationInfo {
-    const { midwayTsSourceRoot } = this.projectInfo;
-    // 确保存在
-    const configurationFilePath = resolve(
-      midwayTsSourceRoot,
-      'configuration.ts'
-    );
-    let configurationAstInfo: IFileAstInfo;
-    if (existsSync(configurationFilePath)) {
-      const configurationAstList = this.astInstance.getAstByFile(
-        configurationFilePath
-      );
-      configurationAstInfo = configurationAstList[0];
-    } else {
-      configurationAstInfo = {
-        file: ts.createSourceFile(
-          configurationFilePath,
-          '',
-          ts.ScriptTarget.ES2018
-        ),
-        fileName: configurationFilePath,
-        changed: true,
-      };
-      this.astInstance.setCache(configurationFilePath, [configurationAstInfo]);
-    }
-
-    let configurationClass = configurationAstInfo.file.statements.find(
-      statement => {
-        return (
-          statement.kind === ts.SyntaxKind.ClassDeclaration &&
-          statement.decorators.find(decorator => {
-            return (
-              (decorator.expression as any)?.expression?.escapedText ===
-              'Configuration'
-            );
-          })
-        );
+  // 代码全局替换
+  globalInsteadCode(allSourceFileAstInfos, fromTo) {
+    for (const { filePath } of allSourceFileAstInfos) {
+      if (!existsSync(filePath)) {
+        continue;
       }
-    );
-
-    const configurationFunc = configurationAstInfo.file.statements.find(
-      statement => {
-        return (
-          statement.kind === ts.SyntaxKind.ExportAssignment &&
-          (statement as any)?.expression?.expression?.escapedText ===
-            'createConfiguration'
-        );
+      let fileStr = readFileSync(filePath).toString();
+      for (const { from, to } of fromTo) {
+        fileStr = fileStr.replace(from, to);
       }
-    );
-
-    if (!configurationClass) {
-      if (!configurationFunc) {
-        configurationClass = factory.createClassDeclaration(
-          [
-            factory.createDecorator(
-              factory.createCallExpression(
-                factory.createIdentifier('Configuration'),
-                undefined,
-                [
-                  factory.createObjectLiteralExpression(
-                    [
-                      factory.createPropertyAssignment(
-                        factory.createIdentifier('imports'),
-                        factory.createArrayLiteralExpression([], false)
-                      ),
-                      factory.createPropertyAssignment(
-                        factory.createIdentifier('importConfigs'),
-                        factory.createArrayLiteralExpression([], false)
-                      ),
-                    ],
-                    true
-                  ),
-                ]
-              )
-            ),
-          ],
-          [factory.createModifier(ts.SyntaxKind.ExportKeyword)],
-          factory.createIdentifier('AutoConfiguraion'),
-          undefined,
-          undefined,
-          []
-        );
-
-        (configurationAstInfo.file as any).statements =
-          configurationAstInfo.file.statements.concat(configurationClass);
-        configurationAstInfo.changed = true;
-        this.astInstance.addImportToFile(configurationAstInfo, {
-          moduleName: '@midwayjs/decorator',
-          name: ['Configuration'],
-        });
-      }
+      writeFileSync(filePath, fileStr);
     }
-
-    return {
-      astInfo: configurationAstInfo,
-      class: configurationClass as unknown as ts.ClassDeclaration,
-      func: (configurationFunc as ts.ExportAssignment)
-        ?.expression as unknown as ts.CallExpression,
-    };
-  }
-
-  // 设置 configuration 的装饰器中的 属性
-  public setConfigurationDecorator(
-    paramKey: string,
-    values: IValueDefine[],
-    isRemove?: boolean,
-    configurationInfo?: IConfigurationInfo
-  ) {
-    if (!configurationInfo) {
-      configurationInfo = this.getConfiguration();
-    }
-    let argObj;
-    if (configurationInfo.class) {
-      const { decorators } = configurationInfo.class;
-      const decorator = decorators.find(decorator => {
-        return (
-          (decorator.expression as any)?.expression?.escapedText ===
-          'Configuration'
-        );
-      });
-      // 装饰器参数
-      const args = (decorator.expression as any).arguments;
-      if (!args.length) {
-        args.push(ts.createObjectLiteral([], true));
-      }
-      argObj = args[0];
-    } else if (configurationInfo.func) {
-      argObj = configurationInfo.func.arguments[0];
-    } else {
-      return;
-    }
-
-    let findParam = argObj.properties.find(property => {
-      return property?.name?.escapedText === paramKey;
-    });
-    // 如果没有对应的值
-    if (!findParam) {
-      findParam = ts.createPropertyAssignment(
-        ts.createIdentifier(paramKey),
-        createAstValue([])
-      );
-      argObj.properties.push(findParam);
-    }
-
-    // 如果值是数组
-    const current = findParam.initializer.elements.map(element => {
-      return astToValue(element);
-    });
-
-    let newElementList = [];
-    if (isRemove) {
-      if (values.length) {
-        current.forEach(element => {
-          const exists = values.find(value => {
-            return value.type === element.type && value.value === element.value;
-          });
-          if (exists) {
-            return;
-          }
-          newElementList.push(element);
-        });
-      }
-    } else {
-      newElementList = current;
-      values.forEach(element => {
-        const exists = newElementList.find(value => {
-          return value.type === element.type && value.value === element.value;
-        });
-        if (exists) {
-          return;
-        }
-        newElementList.push(element);
-      });
-    }
-    findParam.initializer.elements = newElementList.map(element => {
-      return valueToAst(element);
-    });
-    const configurationFilePath = resolve(
-      this.projectInfo.midwayTsSourceRoot,
-      'configuration.ts'
-    );
-    this.astInstance.setAstFileChanged(configurationFilePath);
   }
 }
