@@ -166,7 +166,8 @@ export class Configuration {
     paramKey: string,
     values: IValueDefine[],
     isRemove?: boolean,
-    configurationInfo?: IConfigurationInfo
+    configurationInfo?: IConfigurationInfo,
+    insertToFirst?: boolean
   ) {
     if (!configurationInfo) {
       configurationInfo = this.get();
@@ -231,7 +232,11 @@ export class Configuration {
         if (exists) {
           return;
         }
-        newElementList.push(element);
+        if (insertToFirst) {
+          newElementList.unshift(element);
+        } else {
+          newElementList.push(element);
+        }
       });
     }
     findParam.initializer.elements = newElementList.map(element => {

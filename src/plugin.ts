@@ -270,7 +270,8 @@ export class UpgradePlugin extends BasePlugin {
       'imports',
       [{ type: AST_VALUE_TYPE.Identifier, value: frameworkName }],
       false,
-      configurationInfo
+      configurationInfo,
+      true
     );
 
     const envConfigFilesDir = join(midwayTsSourceRoot, 'config');
