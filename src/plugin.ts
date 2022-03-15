@@ -198,6 +198,14 @@ export class UpgradePlugin extends BasePlugin {
         pkgJson.devDependencies[depName] = '^3.0.0';
       });
 
+      if (!pkgJson.devDependencies['cross-env']) {
+        pkgJson.devDependencies['cross-env'] = '^7.0.3';
+      }
+
+      if (!pkgJson.devDependencies['ts-node']) {
+        pkgJson.devDependencies['ts-node'] = '^9.0.0';
+      }
+
       switch (this.projectInfo.framework) {
         case MidwayFramework.FaaS:
           await this.faas2To3();
