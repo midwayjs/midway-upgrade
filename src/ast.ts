@@ -7,7 +7,9 @@ import {
 } from 'fs-extra';
 import * as prettier from 'prettier';
 import { createAstValue } from './astUtils';
+import { readFileSync } from 'fs';
 const factory = ts.factory;
+const EMPTY_LINE = '// mw empty line';
 export enum ImportType {
   NAMED = 'named', // import { join } from 'path';
   NAMESPACED = 'namespaced', // import * as from 'path';
@@ -35,37 +37,30 @@ export class ASTOperator {
     const cacheKey = [].concat(filePath).join(';');
     return this.getCache<IFileAstInfo[]>(cacheKey, () => {
       if (Array.isArray(filePath)) {
-        const existsFiles = filePath.filter((fileName: string) => {
-          return existsSync(fileName);
-        });
-        const program: ts.Program = ts.createProgram(existsFiles, {
-          skipDefaultLibCheck: true,
-          skipLibCheck: true,
-        });
-        const list = existsFiles.map((fileName: string) => {
-          const fileAstInfo = this.getCache<IFileAstInfo[]>(fileName, () => {
-            return [
-              {
-                file: program.getSourceFile(fileName),
-                fileName,
-                changed: false,
-              },
-            ];
-          });
+        const list = filePath.map((fileName: string) => {
+          const fileAstInfo = this.getAstByFile(fileName);
           return fileAstInfo[0];
         });
         return list;
       } else {
-        let file: ts.SourceFile;
+        let code = '';
         if (existsSync(filePath)) {
-          const program: ts.Program = ts.createProgram([filePath], {
-            skipLibCheck: true,
-            skipDefaultLibCheck: true,
-          });
-          file = program.getSourceFile(filePath);
-        } else {
-          file = ts.createSourceFile(filePath, '', ts.ScriptTarget.ES2018);
+          code = readFileSync(filePath, 'utf-8');
+          code = code
+            .split('\n')
+            .map(line => {
+              if (/^\s*$/.test(line)) {
+                return EMPTY_LINE;
+              }
+              return line;
+            })
+            .join('\n');
         }
+        const file: ts.SourceFile = ts.createSourceFile(
+          filePath,
+          code,
+          ts.ScriptTarget.ES2018
+        );
         return [{ file, fileName: filePath, changed: false }];
       }
     });
@@ -141,12 +136,20 @@ export class ASTOperator {
       if (!fileAstInfo.changed) {
         continue;
       }
-
       result.files.push(filePath);
       const sourceFile: ts.SourceFile = fileAstInfo.file;
       let newCode = printer.printFile(sourceFile);
       newCode = unescape(newCode.replace(/\\u([0-9A-F]{4})/g, '%u$1'));
-      const prettierCode = this.prettier(newCode);
+      let prettierCode = this.prettier(newCode);
+      prettierCode = prettierCode
+        .split('\n')
+        .map(line => {
+          if (line.endsWith(EMPTY_LINE)) {
+            return '';
+          }
+          return line;
+        })
+        .join('\n');
       ensureFileSync(filePath);
       writeFileSync(filePath, prettierCode);
     }

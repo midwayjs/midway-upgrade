@@ -7,5 +7,11 @@ import { join } from 'path';
   conflictCheck: true,
 })
 export class ContainerLifeCycle implements ILifeCycle {
+
+
+  testKey = 123;
+
+  testKey2 = 456;
+
   async onReady() {}
 }
