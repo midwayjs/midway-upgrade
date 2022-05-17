@@ -79,7 +79,14 @@ export const expressionToValue = expression => {
       const regText = expression.text || '';
       const regMatch = /^\/(.*?)\/([a-z]*)$/.exec(regText);
       return new RegExp(regMatch[1], regMatch[2]);
+    case ts.SyntaxKind.AsExpression:
+      return expressionToValue(expression.expression);
   }
+  console.error(
+    `astType ${expression.kind}(${
+      ts.SyntaxKind[expression.kind]
+    }) was unsupported!`
+  );
   return {};
 };
 
