@@ -158,10 +158,14 @@ export class ASTOperator {
 
   // 格式化代码
   private prettier(code) {
-    return prettier.format(code, {
-      parser: 'typescript',
-      singleQuote: true,
-    });
+    try {
+      return prettier.format(code, {
+        parser: 'typescript',
+        singleQuote: true,
+      });
+    } catch {
+      return code;
+    }
   }
 
   public getImportFromFile(

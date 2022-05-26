@@ -447,7 +447,7 @@ export class UpgradePlugin extends BasePlugin {
         );
         for (const method of methods) {
           if (!method.parameters?.length) {
-            return;
+            continue;
           }
           // 找到 方法中的参数列表
           for (const parameter of method.parameters) {
