@@ -39,8 +39,8 @@
     "build": "tsc --build",
     "lint": "mwts check",
     "lint:fix": "mwts fix",
-    "test": "mw test --forceExit",
-    "cov": "mw cov --forceExit",
+    "test": "mw test --forceExit --runInBand",
+    "cov": "mw cov --forceExit --runInBand",
     "release": "npm run build && npm publish --access=public",
     "beta": "npm run build && npm publish --tag beta"
   },
