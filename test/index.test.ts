@@ -21,7 +21,10 @@ describe('index.test.ts', () => {
   it('web 2 to 3', async () => {
     const baseDir = resolve(__dirname, './fixtures/web-v2');
     const target = resolve(__dirname, './fixtures/tmp/web-v2');
-    const lockFile = resolve(__dirname, './fixtures/tmp/web-v2/package-lock.json');
+    const lockFile = resolve(
+      __dirname,
+      './fixtures/tmp/web-v2/package-lock.json'
+    );
     if (existsSync(target)) {
       await remove(target);
     }
