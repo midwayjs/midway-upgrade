@@ -20,6 +20,11 @@ export const run = async (cwd: string, options: any = {}) => {
     baseDir: cwd,
     cmd: npmCmd + ' install',
   });
+  const ls = await exec({
+    baseDir: cwd,
+    cmd: 'npm ls @midwayjs/decorator',
+  });
+  console.log('lsxxx', ls.toString());
   const core = new CommandCore({
     commands: ['dev'],
     options,
