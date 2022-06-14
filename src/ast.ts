@@ -205,6 +205,10 @@ export class ASTOperator {
     }
     // TODO: 处理多个同名模块 import
     const { importClause } = importConfiguration as any;
+    if (!importClause) {
+      // import 'xxx';
+      return;
+    }
     if (importClause.namedBindings.kind === ts.SyntaxKind.NamedImports) {
       const elements = importClause.namedBindings.elements;
       importClause.namedBindings.elements = elements.filter(element => {
