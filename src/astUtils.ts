@@ -6,7 +6,7 @@ export const createAstValue = value => {
   if (Array.isArray(value)) {
     type = 'array';
   } else {
-    type = [].toString.call(value).slice(8, -1).toLowerCase();
+    type = {}.toString.call(value).slice(8, -1).toLowerCase();
   }
   switch (type) {
     case 'number':
@@ -34,6 +34,10 @@ export const createAstValue = value => {
       );
     case 'regexp':
       return ts.createRegularExpressionLiteral(value.toString());
+    case 'undefined':
+      return ts.createIdentifier('undefined');
+    case 'null':
+      return ts.createIdentifier('null');
   }
   throw new Error(`Type ${type} not support`);
 };
@@ -153,7 +157,7 @@ export const codeToBlock = (code: string) => {
 
 export enum AST_VALUE_TYPE {
   Identifier = 'identifier',
-  String = 'string',
+  Value = 'value',
   Func = 'function',
   AST = 'ast',
 }
@@ -211,7 +215,7 @@ export const astToValue = (element: any): IValueDefine => {
     };
   }
   return {
-    type: AST_VALUE_TYPE.String,
-    value: element.text,
+    type: AST_VALUE_TYPE.Value,
+    value: expressionToValue(element),
   };
 };

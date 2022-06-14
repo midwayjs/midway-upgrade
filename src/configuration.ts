@@ -427,7 +427,7 @@ export class Configuration {
         value: 'join',
         arguments: [
           { type: AST_VALUE_TYPE.Identifier, value: '__dirname' },
-          { type: AST_VALUE_TYPE.String, value: configDir },
+          { type: AST_VALUE_TYPE.Value, value: configDir },
         ],
       },
     ]);
