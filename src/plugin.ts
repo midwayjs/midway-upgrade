@@ -284,7 +284,11 @@ export class UpgradePlugin extends BasePlugin {
 
     const envConfigFilesDir = join(midwayTsSourceRoot, 'config');
     const configProps: ts.ObjectLiteralElementLike[] = [];
-    if (existsSync(envConfigFilesDir)) {
+    // only faas framework using config object mapping
+    if (
+      existsSync(envConfigFilesDir) &&
+      this.projectInfo.framework === MidwayFramework.FaaS
+    ) {
       const configFileDir = await stat(envConfigFilesDir);
       if (configFileDir.isDirectory()) {
         const allFiles = await readdir(envConfigFilesDir);
@@ -294,8 +298,8 @@ export class UpgradePlugin extends BasePlugin {
             const configFile = join(envConfigFilesDir, file);
             const configData = readFileSync(configFile, 'utf-8');
             // 避免config文件是空的
-            if (!configData.includes('export ')) {
-              writeFileSync(configFile, configData + '\nexport default {};');
+            if (configData.includes('module.exports')) {
+              // TODO: temporarily ignore this situation
             } else if (/(^|\s|\n)export\s*=\s*/.test(configData)) {
               writeFileSync(
                 configFile,
@@ -304,6 +308,8 @@ export class UpgradePlugin extends BasePlugin {
                   '$1export default '
                 )
               );
+            } else if (!configData.includes('export ')) {
+              writeFileSync(configFile, configData + '\nexport default {};');
             }
             const res = envConfigFileReg.exec(file);
             const env = res[1];

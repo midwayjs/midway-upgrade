@@ -213,6 +213,11 @@ export const astToValue = (element: any): IValueDefine => {
         return astToValue(element);
       }),
     };
+  } else if (element.kind === ts.SyntaxKind.SpreadElement) {
+    return {
+      type: AST_VALUE_TYPE.AST,
+      value: element,
+    };
   }
   return {
     type: AST_VALUE_TYPE.Value,

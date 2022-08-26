@@ -161,7 +161,7 @@ export class Configuration {
     this.astInstance.addImportToFile(configurationAstInfo, modInfo);
   }
 
-  // 设置 configuration 的装饰器中的 属性
+  // 设置 @configuration 的装饰器中的 属性
   public setDecorator(
     paramKey: string,
     values: IValueDefine[],
