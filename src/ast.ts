@@ -298,11 +298,11 @@ export class ASTOperator {
     // 如果整个代码文件中没有引入过对应的模块，那么比较简单，直接插入就可以了
     if (!importInfo) {
       this.setAstFileChanged(fileName);
-      const importStatemanet = ts.createImportDeclaration(
-        undefined,
+      const importStatemanet = factory.createImportDeclaration(
         undefined,
         this.getImportNamedBindings(importType, namedList),
-        createAstValue(moduleName)
+        createAstValue(moduleName),
+        undefined,
       );
       (file.statements as any).unshift(importStatemanet);
       return this;
@@ -327,6 +327,7 @@ export class ASTOperator {
               if (typeof importName === 'object') {
                 importInfo.elements.push(
                   factory.createImportSpecifier(
+                    false,
                     factory.createIdentifier(importName.prop),
                     factory.createIdentifier(importName.alias)
                   )
@@ -334,6 +335,7 @@ export class ASTOperator {
               } else {
                 importInfo.elements.push(
                   factory.createImportSpecifier(
+                    false,
                     undefined,
                     factory.createIdentifier(importName)
                   )
@@ -366,11 +368,13 @@ export class ASTOperator {
             if (typeof name === 'object') {
               // import { xxx as xxx2 } from
               return factory.createImportSpecifier(
+                false,
                 factory.createIdentifier(name.prop),
                 factory.createIdentifier(name.alias)
               );
             }
             return factory.createImportSpecifier(
+              false,
               undefined,
               factory.createIdentifier(name)
             );
@@ -404,9 +408,10 @@ export class ASTOperator {
       if (statement.kind !== ts.SyntaxKind.ClassDeclaration) {
         return;
       }
-      if (statement.decorators) {
+      if (ts.canHaveDecorators(statement)) {
+        const statementDecorators = ts.getDecorators(statement);
         decorators.push(
-          ...statement.decorators.map(deco => {
+          ...statementDecorators.map(deco => {
             return {
               classStatement: statement as ts.ClassDeclaration,
               decorator: deco,
@@ -418,9 +423,10 @@ export class ASTOperator {
       const classStatement = statement as ts.ClassDeclaration;
       if (classStatement.members) {
         classStatement.members.forEach(member => {
-          if (member.decorators) {
+          if (ts.canHaveDecorators(member)) {
+            const memberDecorators = ts.getDecorators(member);
             decorators.push(
-              ...member.decorators.map(deco => {
+              ...memberDecorators.map(deco => {
                 return {
                   member,
                   classStatement: classStatement,

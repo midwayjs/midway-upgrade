@@ -76,15 +76,16 @@ export class Configuration {
 
     let configurationClass = configurationAstInfo.file.statements.find(
       statement => {
-        return (
-          statement.kind === ts.SyntaxKind.ClassDeclaration &&
-          statement.decorators.find(decorator => {
-            return (
-              (decorator.expression as any)?.expression?.escapedText ===
-              'Configuration'
-            );
-          })
-        );
+        if (statement.kind === ts.SyntaxKind.ClassDeclaration) {
+          if (ts.canHaveDecorators(statement)) {
+            return ts.getDecorators(statement).find(decorator => {
+              return (
+                (decorator.expression as any)?.expression?.escapedText ===
+                'Configuration'
+              );
+            })
+          }
+        }
       }
     );
 
@@ -174,19 +175,21 @@ export class Configuration {
     }
     let argObj;
     if (configurationInfo.class) {
-      const { decorators } = configurationInfo.class;
-      const decorator = decorators.find(decorator => {
-        return (
-          (decorator.expression as any)?.expression?.escapedText ===
-          'Configuration'
-        );
-      });
-      // 装饰器参数
-      const args = (decorator.expression as any).arguments;
-      if (!args.length) {
-        args.push(ts.createObjectLiteral([], true));
+      if (ts.canHaveDecorators(configurationInfo.class)) {
+        const decorators = ts.getDecorators(configurationInfo.class);
+        const decorator = decorators.find(decorator => {
+          return (
+            (decorator.expression as any)?.expression?.escapedText ===
+            'Configuration'
+          );
+        });
+        // 装饰器参数
+        const args = (decorator.expression as any).arguments;
+        if (!args.length) {
+          args.push(ts.createObjectLiteral([], true));
+        }
+        argObj = args[0];
       }
-      argObj = args[0];
     } else if (configurationInfo.func) {
       argObj = configurationInfo.func.arguments[0];
     } else {
@@ -198,8 +201,8 @@ export class Configuration {
     });
     // 如果没有对应的值
     if (!findParam) {
-      findParam = ts.createPropertyAssignment(
-        ts.createIdentifier(paramKey),
+      findParam = factory.createPropertyAssignment(
+        factory.createIdentifier(paramKey),
         createAstValue([])
       );
       argObj.properties.push(findParam);

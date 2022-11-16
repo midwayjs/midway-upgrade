@@ -179,23 +179,29 @@ export class UpgradePlugin extends BasePlugin {
       Object.keys(pkgJson.dependencies).map(depName => {
         if (
           !depName.startsWith('@midwayjs/') ||
-          notNeedUpgreade.includes(depName) ||
-          depName.includes('cli')
+          notNeedUpgreade.includes(depName)
         ) {
           return;
         }
-        pkgJson.dependencies[depName] = '^3.0.0';
+        if (depName.includes('cli')) {
+          pkgJson.dependencies[depName] = '^2';
+        } else {
+          pkgJson.dependencies[depName] = '^3.0.0';
+        }
       });
 
       Object.keys(pkgJson.devDependencies).map(depName => {
         if (
           !depName.startsWith('@midwayjs/') ||
-          notNeedUpgreade.includes(depName) ||
-          depName.includes('cli')
+          notNeedUpgreade.includes(depName)
         ) {
           return;
         }
-        pkgJson.devDependencies[depName] = '^3.0.0';
+        if (depName.includes('cli')) {
+          pkgJson.devDependencies[depName] = '^2';
+        } else {
+          pkgJson.devDependencies[depName] = '^3.0.0';
+        }
       });
 
       if (!pkgJson.devDependencies['cross-env']) {
@@ -204,6 +210,15 @@ export class UpgradePlugin extends BasePlugin {
 
       if (!pkgJson.devDependencies['ts-node']) {
         pkgJson.devDependencies['ts-node'] = '^10.0.0';
+      }
+
+      if (!pkgJson.devDependencies['jest']) {
+        pkgJson.devDependencies['jest'] = '^29';
+        pkgJson.devDependencies['ts-jest'] = '^29';
+      }
+
+      if (!pkgJson.devDependencies['typescript']) {
+        pkgJson.devDependencies['typescript'] = '^4.8.0';
       }
 
       switch (this.projectInfo.framework) {
@@ -457,22 +472,22 @@ export class UpgradePlugin extends BasePlugin {
           }
           // 找到 方法中的参数列表
           for (const parameter of method.parameters) {
-            (parameter as any).decorators = (
-              (parameter as any).decorators || []
-            ).map((deco: ts.Decorator) => {
-              if (
-                deco.expression.kind === ts.SyntaxKind.CallExpression &&
-                decorators.includes(
-                  (deco.expression as any).expression.escapedText
-                ) &&
-                !(deco.expression as any).arguments?.length
-              ) {
-                (deco.expression as any).arguments = [
-                  factory.createStringLiteral(parameter.name.escapedText, true),
-                ];
-              }
-              return deco;
-            });
+            if (ts.canHaveDecorators(parameter)) {
+              ts.getDecorators(parameter).forEach((deco: ts.Decorator) => {
+                console.log('deco', deco)
+                if (
+                  deco.expression.kind === ts.SyntaxKind.CallExpression &&
+                  decorators.includes(
+                    (deco.expression as any).expression.escapedText
+                  ) &&
+                  !(deco.expression as any).arguments?.length
+                ) {
+                  (deco.expression as any).arguments = [
+                    factory.createStringLiteral((parameter.name as any).escapedText, true),
+                  ];
+                }
+              });
+            }
           }
         }
       }
@@ -495,6 +510,8 @@ export class UpgradePlugin extends BasePlugin {
       pkgJson.devDependencies['@midwayjs/serverless-scf-starter'] = '^3.0.0';
       pkgJson.devDependencies['@midwayjs/serverless-scf-trigger'] = '^3.0.0';
     }
+    pkgJson.devDependencies['@midwayjs/cli'] = '^2';
+    pkgJson.devDependencies['@midwayjs/cli-plugin-faas'] = '^2';
   }
 
   async web2to3() {
