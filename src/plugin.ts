@@ -474,7 +474,7 @@ export class UpgradePlugin extends BasePlugin {
           for (const parameter of method.parameters) {
             if (ts.canHaveDecorators(parameter)) {
               ts.getDecorators(parameter).forEach((deco: ts.Decorator) => {
-                console.log('deco', deco)
+                console.log('deco', deco);
                 if (
                   deco.expression.kind === ts.SyntaxKind.CallExpression &&
                   decorators.includes(
@@ -483,7 +483,10 @@ export class UpgradePlugin extends BasePlugin {
                   !(deco.expression as any).arguments?.length
                 ) {
                   (deco.expression as any).arguments = [
-                    factory.createStringLiteral((parameter.name as any).escapedText, true),
+                    factory.createStringLiteral(
+                      (parameter.name as any).escapedText,
+                      true
+                    ),
                   ];
                 }
               });

@@ -302,7 +302,7 @@ export class ASTOperator {
         undefined,
         this.getImportNamedBindings(importType, namedList),
         createAstValue(moduleName),
-        undefined,
+        undefined
       );
       (file.statements as any).unshift(importStatemanet);
       return this;

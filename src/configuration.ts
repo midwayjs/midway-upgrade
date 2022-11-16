@@ -83,7 +83,7 @@ export class Configuration {
                 (decorator.expression as any)?.expression?.escapedText ===
                 'Configuration'
               );
-            })
+            });
           }
         }
       }
