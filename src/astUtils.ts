@@ -10,34 +10,34 @@ export const createAstValue = value => {
   }
   switch (type) {
     case 'number':
-      return ts.createNumericLiteral(value + '');
+      return factory.createNumericLiteral(value + '');
     case 'string':
-      return ts.createStringLiteral(value);
+      return factory.createStringLiteral(value);
     case 'boolean':
-      return value ? ts.createTrue() : ts.createFalse();
+      return value ? factory.createTrue() : factory.createFalse();
     case 'array':
-      return ts.createArrayLiteral(
+      return factory.createArrayLiteralExpression(
         value.map((item: any) => {
           return createAstValue(item);
         }),
         false
       );
     case 'object':
-      return ts.createObjectLiteral(
+      return factory.createObjectLiteralExpression(
         Object.keys(value).map((key: string) => {
-          return ts.createPropertyAssignment(
-            ts.createIdentifier(key),
+          return factory.createPropertyAssignment(
+            factory.createIdentifier(key),
             createAstValue(value[key])
           );
         }),
         true
       );
     case 'regexp':
-      return ts.createRegularExpressionLiteral(value.toString());
+      return factory.createRegularExpressionLiteral(value.toString());
     case 'undefined':
-      return ts.createIdentifier('undefined');
+      return factory.createIdentifier('undefined');
     case 'null':
-      return ts.createIdentifier('null');
+      return factory.createIdentifier('null');
   }
   throw new Error(`Type ${type} not support`);
 };
@@ -212,6 +212,11 @@ export const astToValue = (element: any): IValueDefine => {
       arguments: element.arguments.map(element => {
         return astToValue(element);
       }),
+    };
+  } else if (element.kind === ts.SyntaxKind.SpreadElement) {
+    return {
+      type: AST_VALUE_TYPE.AST,
+      value: element,
     };
   }
   return {
