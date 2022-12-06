@@ -410,14 +410,16 @@ export class ASTOperator {
       }
       if (ts.canHaveDecorators(statement)) {
         const statementDecorators = ts.getDecorators(statement);
-        decorators.push(
-          ...statementDecorators.map(deco => {
-            return {
-              classStatement: statement as ts.ClassDeclaration,
-              decorator: deco,
-            };
-          })
-        );
+        if (statementDecorators) {
+          decorators.push(
+            ...statementDecorators.map(deco => {
+              return {
+                classStatement: statement as ts.ClassDeclaration,
+                decorator: deco,
+              };
+            })
+          );
+        }
       }
 
       const classStatement = statement as ts.ClassDeclaration;
@@ -425,15 +427,17 @@ export class ASTOperator {
         classStatement.members.forEach(member => {
           if (ts.canHaveDecorators(member)) {
             const memberDecorators = ts.getDecorators(member);
-            decorators.push(
-              ...memberDecorators.map(deco => {
-                return {
-                  member,
-                  classStatement: classStatement,
-                  decorator: deco,
-                };
-              })
-            );
+            if (memberDecorators) {
+              decorators.push(
+                ...memberDecorators.map(deco => {
+                  return {
+                    member,
+                    classStatement: classStatement,
+                    decorator: deco,
+                  };
+                })
+              );
+            }
           }
         });
       }
