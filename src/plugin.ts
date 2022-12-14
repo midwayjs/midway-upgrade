@@ -473,23 +473,26 @@ export class UpgradePlugin extends BasePlugin {
           // 找到 方法中的参数列表
           for (const parameter of method.parameters) {
             if (ts.canHaveDecorators(parameter)) {
-              ts.getDecorators(parameter).forEach((deco: ts.Decorator) => {
-                console.log('deco', deco);
-                if (
-                  deco.expression.kind === ts.SyntaxKind.CallExpression &&
-                  decorators.includes(
-                    (deco.expression as any).expression.escapedText
-                  ) &&
-                  !(deco.expression as any).arguments?.length
-                ) {
-                  (deco.expression as any).arguments = [
-                    factory.createStringLiteral(
-                      (parameter.name as any).escapedText,
-                      true
-                    ),
-                  ];
-                }
-              });
+              const decorators = ts.getDecorators(parameter);
+              if (decorators) {
+                decorators.forEach((deco: ts.Decorator) => {
+                  console.log('deco', deco);
+                  if (
+                    deco.expression.kind === ts.SyntaxKind.CallExpression &&
+                    decorators.includes(
+                      (deco.expression as any).expression.escapedText
+                    ) &&
+                    !(deco.expression as any).arguments?.length
+                  ) {
+                    (deco.expression as any).arguments = [
+                      factory.createStringLiteral(
+                        (parameter.name as any).escapedText,
+                        true
+                      ),
+                    ];
+                  }
+                });
+              }
             }
           }
         }
