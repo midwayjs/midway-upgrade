@@ -476,7 +476,6 @@ export class UpgradePlugin extends BasePlugin {
               const decorators = ts.getDecorators(parameter);
               if (decorators) {
                 decorators.forEach((deco: ts.Decorator) => {
-                  console.log('deco', deco);
                   if (
                     deco.expression.kind === ts.SyntaxKind.CallExpression &&
                     decorators.includes(
