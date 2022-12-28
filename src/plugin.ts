@@ -353,26 +353,42 @@ export class UpgradePlugin extends BasePlugin {
       true,
       configurationInfo
     );
-    // 添加新的
-    await this.configurationInstance.setDecorator(
-      'importConfigs',
-      [
-        {
-          type: AST_VALUE_TYPE.AST,
-          value: factory.createObjectLiteralExpression(configProps),
-        },
-      ],
-      false,
-      configurationInfo
-    );
-
-    // 老版本需要依赖 path 模块的 join 来处理 config，需要检测有没有其他地方使用，如果没有则移除掉
-    const code = this.astInstance.getPrinter().printFile(astInfo.file);
-    if (!code.includes('join(')) {
-      this.astInstance.removeImportFromFile(astInfo, {
+    if (configProps.length) {
+      // 添加新的
+      await this.configurationInstance.setDecorator(
+        'importConfigs',
+        [
+          {
+            type: AST_VALUE_TYPE.AST,
+            value: factory.createObjectLiteralExpression(configProps),
+          },
+        ],
+        false,
+        configurationInfo
+      );
+      // 老版本需要依赖 path 模块的 join 来处理 config，需要检测有没有其他地方使用，如果没有则移除掉
+      const code = this.astInstance.getPrinter().printFile(astInfo.file);
+      if (!code.includes('join(')) {
+        this.astInstance.removeImportFromFile(astInfo, {
+          moduleName: 'path',
+          name: ['join'],
+        });
+      }
+    } else if (existsSync(envConfigFilesDir)) {
+      this.configurationInstance.addImportToFile({
         moduleName: 'path',
         name: ['join'],
       });
+      await this.configurationInstance.setDecorator('importConfigs', [
+        {
+          type: AST_VALUE_TYPE.Func,
+          value: 'join',
+          arguments: [
+            { type: AST_VALUE_TYPE.Identifier, value: '__dirname' },
+            { type: AST_VALUE_TYPE.Value, value: './config/' },
+          ],
+        },
+      ]);
     }
   }
 
@@ -382,6 +398,29 @@ export class UpgradePlugin extends BasePlugin {
     let isImportValidate = false;
     const validateModule = '@midwayjs/validate';
     for (const { fileAstInfo } of allFileAstInfo) {
+      // 移除 Priority 装饰器
+      if (this.astInstance.insteadImport(fileAstInfo, '@midwayjs/decorator', 'Priority')) {
+        for (const statement of fileAstInfo.file.statements) {
+          if (statement.kind !== ts.SyntaxKind.ClassDeclaration) {
+            continue;
+          }
+          if (ts.canHaveDecorators(statement)) {
+            const decorators = ts.getDecorators(statement) || [];
+            if (decorators.length) {
+              (statement as any).modifiers = statement.modifiers.filter(modifier => {
+                if (modifier.kind === ts.SyntaxKind.Decorator) {
+                  const expression: any = modifier.expression;
+                  if (expression.expression.escapedText.toString() === 'Priority') {
+                      return false;
+                  }
+                }
+                return true;
+              });
+            }
+          }
+        }
+      }
+
       const validateDecoRes = ['Validate', 'Rule', 'RuleType'].map(deco => {
         return this.astInstance.insteadImport(
           fileAstInfo,
