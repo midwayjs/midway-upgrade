@@ -209,26 +209,31 @@ export class ASTOperator {
       // import 'xxx';
       return;
     }
-    if (importClause.namedBindings.kind === ts.SyntaxKind.NamedImports) {
-      const elements = importClause.namedBindings.elements;
-      importClause.namedBindings.elements = elements.filter(element => {
-        const elementOriginName = (
-          element.propertyName?.escapedText || element.name.escapedText
-        ).toString();
-        return !namedList.find(name => {
-          return name === elementOriginName;
+    if (importClause.namedBindings) {
+      if (importClause.namedBindings.kind === ts.SyntaxKind.NamedImports) {
+        const elements = importClause.namedBindings.elements;
+        importClause.namedBindings.elements = elements.filter(element => {
+          const elementOriginName = (
+            element.propertyName?.escapedText || element.name.escapedText
+          ).toString();
+          return !namedList.find(name => {
+            return name === elementOriginName;
+          });
         });
-      });
-
-      if (!importClause.namedBindings.elements.length) {
-        (file as any).statements = file.statements.filter(originStatement => {
-          return (
-            (originStatement as any)._index !==
-            (importConfiguration as any)._index
-          );
-        });
+  
+        if (!importClause.namedBindings.elements.length) {
+          (file as any).statements = file.statements.filter(originStatement => {
+            return (
+              (originStatement as any)._index !==
+              (importConfiguration as any)._index
+            );
+          });
+        }
       }
+    } else {
+      // import xxx from 'xxx
     }
+    
   }
 
   // 获取文件中已经引入的模块信息
@@ -246,24 +251,27 @@ export class ASTOperator {
     }
 
     const { importClause } = importConfiguration as any;
-    // import { xxx } from 'xxx'
-    if (importClause.namedBindings.kind === ts.SyntaxKind.NamedImports) {
-      const elements = importClause.namedBindings.elements;
-      return {
-        type: ImportType.NAMED,
-        elements,
-        names: elements.map(element => {
-          return element.name.escapedText; // 最终的 name
-        }),
-      };
+    if (importClause.namedBindings) {
+      // import { xxx } from 'xxx'
+      if (importClause.namedBindings.kind === ts.SyntaxKind.NamedImports) {
+        const elements = importClause.namedBindings.elements;
+        return {
+          type: ImportType.NAMED,
+          elements,
+          names: elements.map(element => {
+            return element.name.escapedText; // 最终的 name
+          }),
+        };
+      }
+      // import * as xxxx from 'xxx'
+      if (importClause.namedBindings.kind === ts.SyntaxKind.NamespaceImport) {
+        return {
+          type: ImportType.NAMESPACED,
+          name: importClause.namedBindings.name.escapedText,
+        };
+      }
     }
-    // import * as xxxx from 'xxx'
-    if (importClause.namedBindings.kind === ts.SyntaxKind.NamespaceImport) {
-      return {
-        type: ImportType.NAMESPACED,
-        name: importClause.namedBindings.name.escapedText,
-      };
-    }
+    
     return {
       type: ImportType.NORMAL,
       name: importClause.name.escapedText,
