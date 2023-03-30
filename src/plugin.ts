@@ -400,9 +400,15 @@ export class UpgradePlugin extends BasePlugin {
     for (const { fileAstInfo } of allFileAstInfo) {
       // 移除 Priority/ Async 等装饰器
       const decorators = ['Priority', 'Async'];
-      for(const decorator of decorators) {
+      for (const decorator of decorators) {
         // 移除导入
-        if (this.astInstance.insteadImport(fileAstInfo, '@midwayjs/decorator', decorator)) {
+        if (
+          this.astInstance.insteadImport(
+            fileAstInfo,
+            '@midwayjs/decorator',
+            decorator
+          )
+        ) {
           for (const statement of fileAstInfo.file.statements) {
             if (statement.kind !== ts.SyntaxKind.ClassDeclaration) {
               continue;
@@ -411,22 +417,26 @@ export class UpgradePlugin extends BasePlugin {
             if (ts.canHaveDecorators(statement)) {
               const decorators = ts.getDecorators(statement) || [];
               if (decorators.length) {
-                (statement as any).modifiers = statement.modifiers.filter(modifier => {
-                  if (modifier.kind === ts.SyntaxKind.Decorator) {
-                    const expression: any = modifier.expression;
-                    if (expression.expression.escapedText.toString() === decorator) {
+                (statement as any).modifiers = statement.modifiers.filter(
+                  modifier => {
+                    if (modifier.kind === ts.SyntaxKind.Decorator) {
+                      const expression: any = modifier.expression;
+                      if (
+                        expression.expression.escapedText.toString() ===
+                        decorator
+                      ) {
                         return false;
+                      }
                     }
+                    return true;
                   }
-                  return true;
-                });
+                );
               }
             }
           }
         }
-  
       }
-      
+
       const validateDecoRes = ['Validate', 'Rule', 'RuleType'].map(deco => {
         return this.astInstance.insteadImport(
           fileAstInfo,

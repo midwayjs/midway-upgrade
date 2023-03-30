@@ -220,7 +220,7 @@ export class ASTOperator {
             return name === elementOriginName;
           });
         });
-  
+
         if (!importClause.namedBindings.elements.length) {
           (file as any).statements = file.statements.filter(originStatement => {
             return (
@@ -233,7 +233,6 @@ export class ASTOperator {
     } else {
       // import xxx from 'xxx
     }
-    
   }
 
   // 获取文件中已经引入的模块信息
@@ -271,7 +270,7 @@ export class ASTOperator {
         };
       }
     }
-    
+
     return {
       type: ImportType.NORMAL,
       name: importClause.name.escapedText,
