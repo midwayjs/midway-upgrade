@@ -398,29 +398,35 @@ export class UpgradePlugin extends BasePlugin {
     let isImportValidate = false;
     const validateModule = '@midwayjs/validate';
     for (const { fileAstInfo } of allFileAstInfo) {
-      // 移除 Priority 装饰器
-      if (this.astInstance.insteadImport(fileAstInfo, '@midwayjs/decorator', 'Priority')) {
-        for (const statement of fileAstInfo.file.statements) {
-          if (statement.kind !== ts.SyntaxKind.ClassDeclaration) {
-            continue;
-          }
-          if (ts.canHaveDecorators(statement)) {
-            const decorators = ts.getDecorators(statement) || [];
-            if (decorators.length) {
-              (statement as any).modifiers = statement.modifiers.filter(modifier => {
-                if (modifier.kind === ts.SyntaxKind.Decorator) {
-                  const expression: any = modifier.expression;
-                  if (expression.expression.escapedText.toString() === 'Priority') {
-                      return false;
+      // 移除 Priority/ Async 等装饰器
+      const decorators = ['Priority', 'Async'];
+      for(const decorator of decorators) {
+        // 移除导入
+        if (this.astInstance.insteadImport(fileAstInfo, '@midwayjs/decorator', decorator)) {
+          for (const statement of fileAstInfo.file.statements) {
+            if (statement.kind !== ts.SyntaxKind.ClassDeclaration) {
+              continue;
+            }
+            // 移除 class 上的装饰器
+            if (ts.canHaveDecorators(statement)) {
+              const decorators = ts.getDecorators(statement) || [];
+              if (decorators.length) {
+                (statement as any).modifiers = statement.modifiers.filter(modifier => {
+                  if (modifier.kind === ts.SyntaxKind.Decorator) {
+                    const expression: any = modifier.expression;
+                    if (expression.expression.escapedText.toString() === decorator) {
+                        return false;
+                    }
                   }
-                }
-                return true;
-              });
+                  return true;
+                });
+              }
             }
           }
         }
+  
       }
-
+      
       const validateDecoRes = ['Validate', 'Rule', 'RuleType'].map(deco => {
         return this.astInstance.insteadImport(
           fileAstInfo,
