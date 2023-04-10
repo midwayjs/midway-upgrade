@@ -231,7 +231,16 @@ export class ASTOperator {
         }
       }
     } else {
-      // import xxx from 'xxx
+      // import xxx from 'xxx'
+      // import * as xxx from 'xxx'
+      (file as any).statements = file.statements.filter((statement: any) => {
+        if (statement.kind === ts.SyntaxKind.ImportDeclaration) {
+          if (statement?.moduleSpecifier?.text === moduleName) {
+            return false;
+          }
+        }
+        return true;
+      });
     }
   }
 
