@@ -220,7 +220,7 @@ export class ASTOperator {
             return name === elementOriginName;
           });
         });
-  
+
         if (!importClause.namedBindings.elements.length) {
           (file as any).statements = file.statements.filter(originStatement => {
             return (
@@ -231,9 +231,17 @@ export class ASTOperator {
         }
       }
     } else {
-      // import xxx from 'xxx
+      // import xxx from 'xxx'
+      // import * as xxx from 'xxx'
+      (file as any).statements = file.statements.filter((statement: any) => {
+        if (statement.kind === ts.SyntaxKind.ImportDeclaration) {
+          if (statement?.moduleSpecifier?.text === moduleName) {
+            return false;
+          }
+        }
+        return true;
+      });
     }
-    
   }
 
   // 获取文件中已经引入的模块信息
@@ -271,7 +279,7 @@ export class ASTOperator {
         };
       }
     }
-    
+
     return {
       type: ImportType.NORMAL,
       name: importClause.name.escapedText,
